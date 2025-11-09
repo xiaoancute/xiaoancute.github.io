@@ -36,7 +36,7 @@ export const friendsConfig: FriendLink[] = [
     title: "Linuxdo",
     imgurl: "https://linux.do/uploads/default/optimized/4X/6/a/6/6a6affc7b1ce8140279e959d32671304db06d5ab_2_180x180.png",
     desc: "真诚、友善、团结、专业。",
-    siteurl: "Linux.do",
+    siteurl: "https://Linux.do",
     tags: ["Chinese forum"],
     weight: 10,
     enabled: true,
