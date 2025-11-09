@@ -12,7 +12,7 @@ export const friendsConfig: FriendLink[] = [
     siteurl: "https://blog.cuteleaf.cn",
     tags: ["Blog"],
     weight: 10, // 权重，数字越大排序越靠前
-    enabled: true, // 是否启用
+    enabled: false, // 是否启用
   },
   {
     title: "Firefly Docs",
@@ -21,7 +21,7 @@ export const friendsConfig: FriendLink[] = [
     siteurl: "https://docs-firefly.cuteleaf.cn",
     tags: ["Docs"],
     weight: 9,
-    enabled: true,
+    enabled: false,
   },
   {
     title: "Firefly",
@@ -30,15 +30,15 @@ export const friendsConfig: FriendLink[] = [
     siteurl: "https://github.com/CuteLeaf/Firefly",
     tags: ["GitHub", "Theme"],
     weight: 9,
-    enabled: true,
+    enabled: false,
   },
   {
-    title: "Astro",
-    imgurl: "https://avatars.githubusercontent.com/u/44914786?v=4&s=640",
-    desc: "The web framework for content-driven websites. ⭐️ Star to support our work!",
-    siteurl: "https://github.com/withastro/astro",
-    tags: ["Framework"],
-    weight: 8,
+    title: "Linuxdo",
+    imgurl: "https://linux.do/uploads/default/optimized/4X/6/a/6/6a6affc7b1ce8140279e959d32671304db06d5ab_2_180x180.png",
+    desc: "真诚、友善、团结、专业。",
+    siteurl: "Linux.do",
+    tags: ["Chinese forum"],
+    weight: 10,
     enabled: true,
   },
 ];

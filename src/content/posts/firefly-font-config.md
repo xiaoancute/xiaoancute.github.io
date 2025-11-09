@@ -5,7 +5,7 @@ pinned: false
 description: 详细介绍如何在 Firefly 博客主题中配置和管理字体，包括系统字体、Google Fonts、自定义字体等多种配置方式，以及字体优化和性能提升技巧。
 tags: [Firefly, 字体配置, 博客, 使用指南]
 category: 博客指南
-draft: false
+draft: true
 image: "api"
 ---
 
