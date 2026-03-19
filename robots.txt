@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /_astro/
+
+Sitemap: https://xiaoan520.dpdns.org/sitemap-index.xml
