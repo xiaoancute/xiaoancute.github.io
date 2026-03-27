@@ -7,6 +7,7 @@ import {
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import {
+	getDefaultBannerCarouselEnabled,
 	getDefaultBannerTitleEnabled,
 	getDefaultHue,
 	getDefaultOverlayBlur,
@@ -14,12 +15,14 @@ import {
 	getDefaultOverlayOpacity,
 	getDefaultWavesEnabled,
 	getHue,
+	getStoredBannerCarouselEnabled,
 	getStoredBannerTitleEnabled,
 	getStoredOverlayBlur,
 	getStoredOverlayCardOpacity,
 	getStoredOverlayOpacity,
 	getStoredWallpaperMode,
 	getStoredWavesEnabled,
+	setBannerCarouselEnabled,
 	setBannerTitleEnabled,
 	setHue,
 	setOverlayBlur,
@@ -39,15 +42,22 @@ let wallpaperMode: WALLPAPER_MODE = $state(backgroundWallpaper.mode);
 const defaultWallpaperMode = backgroundWallpaper.mode;
 let currentLayout: "list" | "grid" = $state("list");
 const defaultLayout = siteConfig.postListLayout.defaultMode;
+const mobileDefaultLayout =
+	siteConfig.postListLayout.mobileDefaultMode || defaultLayout;
 let mounted = $state(false);
 let isSmallScreen = $state(
 	typeof window !== "undefined" ? window.innerWidth < 1200 : false,
+);
+let isMobileWidth = $state(
+	typeof window !== "undefined" ? window.innerWidth < 780 : false,
 );
 let isSwitching = $state(false);
 let wavesEnabled = $state(true);
 const defaultWavesEnabled = getDefaultWavesEnabled();
 let bannerTitleEnabled = $state(true);
 const defaultBannerTitleEnabled = getDefaultBannerTitleEnabled();
+let bannerCarouselEnabled = $state(true);
+const defaultBannerCarouselEnabled = getDefaultBannerCarouselEnabled();
 let overlayOpacity = $state(getDefaultOverlayOpacity());
 const defaultOverlayOpacity = getDefaultOverlayOpacity();
 let overlayBlur = $state(getDefaultOverlayBlur());
@@ -57,6 +67,9 @@ const defaultOverlayCardOpacity = getDefaultOverlayCardOpacity();
 
 const isWallpaperSwitchable = backgroundWallpaper.switchable ?? true;
 const allowLayoutSwitch = siteConfig.postListLayout.allowSwitch;
+let effectiveDefaultLayout = $derived(
+	isMobileWidth ? mobileDefaultLayout : defaultLayout,
+);
 const showThemeColor = !siteConfig.themeColor.fixed;
 // 是否允许用户切换水波纹动画（只看 switchable 配置）
 const isWavesSwitchable =
@@ -68,8 +81,12 @@ const isBannerTitleEnabled =
 const isBannerTitleSwitchable =
 	isBannerTitleEnabled &&
 	(backgroundWallpaper.banner?.homeText?.switchable ?? false);
+// 是否允许用户切换横幅轮播
+const isBannerCarouselSwitchable =
+	backgroundWallpaper.banner?.carousel?.switchable ?? false;
 // 是否有任何横幅设置可显示（后续添加新设置时在此处添加条件）
-const hasBannerSettings = isWavesSwitchable || isBannerTitleSwitchable;
+const hasBannerSettings =
+	isWavesSwitchable || isBannerTitleSwitchable || isBannerCarouselSwitchable;
 const overlaySwitchableConfig =
 	backgroundWallpaper.overlay?.switchable ?? false;
 const isOverlaySettingsSwitchable =
@@ -101,7 +118,9 @@ let overlaySettingsIsDefault = $derived(
 let bannerSettingsIsDefault = $derived(
 	(!isBannerTitleSwitchable ||
 		bannerTitleEnabled === defaultBannerTitleEnabled) &&
-		(!isWavesSwitchable || wavesEnabled === defaultWavesEnabled),
+		(!isWavesSwitchable || wavesEnabled === defaultWavesEnabled) &&
+		(!isBannerCarouselSwitchable ||
+			bannerCarouselEnabled === defaultBannerCarouselEnabled),
 );
 const hasAnyContent =
 	showThemeColor ||
@@ -121,12 +140,12 @@ function resetWallpaperMode() {
 }
 
 function resetLayout() {
-	currentLayout = defaultLayout;
-	localStorage.setItem("postListLayout", defaultLayout);
+	currentLayout = effectiveDefaultLayout;
+	localStorage.removeItem("postListLayout");
 
 	// 触发自定义事件，通知页面布局已改变
 	const event = new CustomEvent("layoutChange", {
-		detail: { layout: defaultLayout },
+		detail: { layout: effectiveDefaultLayout },
 	});
 	window.dispatchEvent(event);
 }
@@ -147,6 +166,13 @@ function resetBannerSettings() {
 	if (isWavesSwitchable && wavesEnabled !== defaultWavesEnabled) {
 		wavesEnabled = defaultWavesEnabled;
 		setWavesEnabled(defaultWavesEnabled);
+	}
+	if (
+		isBannerCarouselSwitchable &&
+		bannerCarouselEnabled !== defaultBannerCarouselEnabled
+	) {
+		bannerCarouselEnabled = defaultBannerCarouselEnabled;
+		setBannerCarouselEnabled(defaultBannerCarouselEnabled);
 	}
 }
 
@@ -180,6 +206,11 @@ function toggleBannerTitleEnabled() {
 	setBannerTitleEnabled(bannerTitleEnabled);
 }
 
+function toggleBannerCarouselEnabled() {
+	bannerCarouselEnabled = !bannerCarouselEnabled;
+	setBannerCarouselEnabled(bannerCarouselEnabled);
+}
+
 function switchWallpaperMode(newMode: WALLPAPER_MODE) {
 	wallpaperMode = newMode;
 	setWallpaperMode(newMode);
@@ -191,8 +222,14 @@ function switchWallpaperMode(newMode: WALLPAPER_MODE) {
 
 function checkScreenSize() {
 	isSmallScreen = window.innerWidth < 1200;
-	if (isSmallScreen) {
-		currentLayout = "list";
+	isMobileWidth = window.innerWidth < 780;
+	// 低于380px强制网格模式
+	if (window.innerWidth < 380 && currentLayout === "list") {
+		currentLayout = "grid";
+		const event = new CustomEvent("layoutChange", {
+			detail: { layout: "grid" },
+		});
+		window.dispatchEvent(event);
 	}
 }
 
@@ -221,7 +258,7 @@ function refreshAllRangeProgress() {
 }
 
 function switchLayout() {
-	if (!mounted || isSmallScreen || isSwitching) return;
+	if (!mounted || isSwitching) return;
 
 	isSwitching = true;
 	currentLayout = currentLayout === "list" ? "grid" : "list";
@@ -252,6 +289,9 @@ onMount(() => {
 	// 从localStorage读取横幅标题状态
 	bannerTitleEnabled = getStoredBannerTitleEnabled();
 
+	// 从localStorage读取横幅轮播状态
+	bannerCarouselEnabled = getStoredBannerCarouselEnabled();
+
 	// 从localStorage读取全屏透明设置状态
 	overlayOpacity = getStoredOverlayOpacity();
 	overlayBlur = getStoredOverlayBlur();
@@ -262,7 +302,8 @@ onMount(() => {
 	if (savedLayout && (savedLayout === "list" || savedLayout === "grid")) {
 		currentLayout = savedLayout;
 	} else {
-		currentLayout = siteConfig.postListLayout.defaultMode;
+		currentLayout =
+			window.innerWidth < 780 ? mobileDefaultLayout : defaultLayout;
 	}
 
 	// 监听窗口大小变化
@@ -506,6 +547,24 @@ $effect(() => {
                     </div>
                 </button>
                 {/if}
+                <!-- Banner Carousel Switch -->
+                {#if isBannerCarouselSwitchable}
+                <button
+                    class="w-full btn-regular rounded-md py-2 px-3 flex items-center gap-3 text-left active:scale-95 transition-all relative overflow-hidden"
+                    class:bg-(--btn-regular-bg-hover)={bannerCarouselEnabled}
+                    onclick={toggleBannerCarouselEnabled}
+                >
+                    <Icon icon="material-symbols:view-carousel-outline" class="text-[1.25rem] shrink-0"></Icon>
+                    <span class="text-sm flex-1">{i18n(I18nKey.bannerCarousel)}</span>
+                    <div class="w-10 h-5 rounded-full transition-all duration-200 relative"
+                         class:bg-(--primary)={bannerCarouselEnabled}
+                         class:bg-(--btn-regular-bg-active)={!bannerCarouselEnabled}>
+                        <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200"
+                             class:left-0.5={!bannerCarouselEnabled}
+                             class:left-5={bannerCarouselEnabled}></div>
+                    </div>
+                </button>
+                {/if}
                 <!-- Waves Animation Switch -->
                 {#if isWavesSwitchable}
                 <button
@@ -529,7 +588,7 @@ $effect(() => {
     {/if}
 
     <!-- Layout Switch Section -->
-    {#if allowLayoutSwitch && !isSmallScreen}
+    {#if allowLayoutSwitch}
         <div class="mt-2 mb-2">
             <div class="flex gap-2 font-bold text-lg text-neutral-900 dark:text-neutral-100 transition relative ml-3 mb-2
                 before:w-1 before:h-4 before:rounded-md before:bg-(--primary)
@@ -537,7 +596,7 @@ $effect(() => {
             >
                 {i18n(I18nKey.postListLayout)}
                 <button aria-label="Reset to Default" class="btn-regular w-7 h-7 rounded-md  active:scale-90"
-                        class:opacity-0={currentLayout === defaultLayout} class:pointer-events-none={currentLayout === defaultLayout} onclick={resetLayout}>
+                        class:opacity-0={currentLayout === effectiveDefaultLayout} class:pointer-events-none={currentLayout === effectiveDefaultLayout} onclick={resetLayout}>
                     <div class="text-(--btn-content)">
                         <Icon icon="fa7-solid:arrow-rotate-left" class="text-[0.875rem]"></Icon>
                     </div>
