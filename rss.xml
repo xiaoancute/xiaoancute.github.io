@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>XIAOAN</title><description>OvO</description><link>https://xiaoan520.dpdns.org/</link><templateTheme>Firefly</templateTheme><templateThemeVersion>6.9.3</templateThemeVersion><templateThemeUrl>https://github.com/CuteLeaf/Firefly</templateThemeUrl><lastBuildDate>2026年4月16日 12:21:00</lastBuildDate><item><title>Firefly 简单使用指南</title><link>https://xiaoan520.dpdns.org/posts/guide/</link><guid isPermaLink="true">https://xiaoan520.dpdns.org/posts/guide/</guid><description>如何使用 Firefly 博客模板。</description><pubDate>Fri, 02 Jan 1970 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;这个博客模板是基于 &lt;a href=&quot;https://astro.build/&quot; target=&quot;_blank&quot;&gt;Astro&lt;/a&gt; 构建的。对于本指南中未提及的内容，您可以在 &lt;a href=&quot;https://docs.astro.build/&quot; target=&quot;_blank&quot;&gt;Astro 文档&lt;/a&gt; 中找到答案。&lt;/p&gt;
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>XIAOAN</title><description>OvO</description><link>https://xiaoan520.dpdns.org/</link><templateTheme>Firefly</templateTheme><templateThemeVersion>6.9.4</templateThemeVersion><templateThemeUrl>https://github.com/CuteLeaf/Firefly</templateThemeUrl><lastBuildDate>2026年4月28日 14:30:30</lastBuildDate><item><title>Firefly 简单使用指南</title><link>https://xiaoan520.dpdns.org/posts/guide/</link><guid isPermaLink="true">https://xiaoan520.dpdns.org/posts/guide/</guid><description>如何使用 Firefly 博客模板。</description><pubDate>Fri, 02 Jan 1970 00:00:00 GMT</pubDate><content:encoded>&lt;p&gt;这个博客模板是基于 &lt;a href=&quot;https://astro.build/&quot; target=&quot;_blank&quot;&gt;Astro&lt;/a&gt; 构建的。对于本指南中未提及的内容，您可以在 &lt;a href=&quot;https://docs.astro.build/&quot; target=&quot;_blank&quot;&gt;Astro 文档&lt;/a&gt; 中找到答案。&lt;/p&gt;
 &lt;section&gt;&lt;h2&gt;文章的 Front-matter&lt;a href=&quot;#文章的-front-matter&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div&gt;&lt;figure&gt;&lt;figcaption&gt;&lt;/figcaption&gt;&lt;pre&gt;&lt;code&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;1&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;---&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;2&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;title&lt;/span&gt;&lt;span&gt;: &lt;/span&gt;&lt;span&gt;我的第一篇博客文章&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;3&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;published&lt;/span&gt;&lt;span&gt;: &lt;/span&gt;&lt;span&gt;2023-09-09&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;4&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;description&lt;/span&gt;&lt;span&gt;: &lt;/span&gt;&lt;span&gt;这是我新 Astro 博客的第一篇文章。&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;5&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;image&lt;/span&gt;&lt;span&gt;: &lt;/span&gt;&lt;span&gt;./cover.jpg&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;6&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;tags&lt;/span&gt;&lt;span&gt;: [&lt;/span&gt;&lt;span&gt;前端&lt;/span&gt;&lt;span&gt;, &lt;/span&gt;&lt;span&gt;开发&lt;/span&gt;&lt;span&gt;]&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;7&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;category&lt;/span&gt;&lt;span&gt;: &lt;/span&gt;&lt;span&gt;前端开发&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;8&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;draft&lt;/span&gt;&lt;span&gt;: &lt;/span&gt;&lt;span&gt;false&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;div&gt;&lt;div&gt;9&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;span&gt;---&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;/code&gt;&lt;/pre&gt;&lt;div&gt;&lt;div&gt;&lt;/div&gt;&lt;div&gt;&lt;/div&gt;&lt;/div&gt;&lt;/figure&gt;&lt;/div&gt;
 
 
@@ -224,4 +224,117 @@
 &lt;li&gt;示例：&lt;code&gt;define:拓扑学&lt;/code&gt; (显示“拓扑学”的定义)&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
-&lt;/ol&gt;</content:encoded></item><item><title>Firefly 文章加密</title><link>https://xiaoan520.dpdns.org/posts/encrypted-demo/</link><guid isPermaLink="true">https://xiaoan520.dpdns.org/posts/encrypted-demo/</guid><description>这是一篇密码保护的示例文章，用于演示文章加密功能。</description><pubDate>Fri, 02 Jan 1970 00:00:00 GMT</pubDate><content:encoded>本文已加密保护，请访问网站查看。</content:encoded></item></channel></rss>
+&lt;/ol&gt;</content:encoded></item><item><title>Firefly 文章加密</title><link>https://xiaoan520.dpdns.org/posts/encrypted-demo/</link><guid isPermaLink="true">https://xiaoan520.dpdns.org/posts/encrypted-demo/</guid><description>这是一篇密码保护的示例文章，用于演示文章加密功能。</description><pubDate>Fri, 02 Jan 1970 00:00:00 GMT</pubDate><content:encoded>本文已加密保护，请访问网站查看。</content:encoded></item><item><title>Markdown PlantUML 图表</title><link>https://xiaoan520.dpdns.org/posts/markdown-plantuml/</link><guid isPermaLink="true">https://xiaoan520.dpdns.org/posts/markdown-plantuml/</guid><description>用于验证 Firefly 中 PlantUML 插件渲染、主题切换与交互能力的示例文章。</description><pubDate>Thu, 01 Jan 1970 00:00:00 GMT</pubDate><content:encoded>&lt;section&gt;&lt;h2&gt;Markdown 中 PlantUML 图表指南&lt;a href=&quot;#markdown-中-plantuml-图表指南&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;p&gt;PlantUML 是一种使用纯文本描述图表的工具。你只需要写一段结构化语法，就可以生成时序图、类图、用例图、活动图等常见工程图。&lt;/p&gt;&lt;p&gt;它特别适合写在技术博客和项目文档里：&lt;/p&gt;&lt;ul&gt;
+&lt;li&gt;图表和正文一起版本管理，便于协作与审阅&lt;/li&gt;
+&lt;li&gt;修改图只需要改文本，适合频繁迭代&lt;/li&gt;
+&lt;li&gt;能和 Markdown 无缝结合，保持文档统一&lt;/li&gt;
+&lt;/ul&gt;&lt;p&gt;在 Firefly 中，&lt;code&gt;plantuml&lt;/code&gt; 代码块会在构建阶段编码并生成服务器 SVG 地址，页面端再根据亮暗主题自动切换图源，并支持缩放、拖拽和全屏交互。&lt;/p&gt;&lt;p&gt;如果你想快速上手，可以记住这个最小模板：&lt;/p&gt;&lt;div&gt;&lt;div&gt;&lt;img alt=&quot;@startuml
+Alice -&amp;gt; Bob: Hello
+Bob --&amp;gt; Alice: Hi
+@enduml&quot; src=&quot;https://www.plantuml.com/plantuml/svg/SoWkIImgAStDuNBCoKnELT2rKt3AJx9Iy4ZDoSdd0Z8LT852O3cWO2QNGsfU2b0r0000&quot; loading=&quot;lazy&quot; /&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;section&gt;&lt;h2&gt;活动图示例&lt;a href=&quot;#活动图示例&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div&gt;&lt;div&gt;&lt;img alt=&quot;@startuml
+start
+:用户提交订单;
+if (库存充足?) then (是)
+	:冻结库存;
+	:创建支付单;
+	if (支付成功?) then (是)
+		:生成发货单;
+		:通知仓库拣货;
+	else (否)
+		:取消订单;
+		:释放库存;
+	endif
+else (否)
+	:提示缺货;
+endif
+stop
+@enduml&quot; src=&quot;https://www.plantuml.com/plantuml/svg/SoWkIImgAStDuG8pkAoUJrdnh6Fxi_u9JtOjUR5kqTFUgTPScMaA6aztJNwwTiRJrjONspRRQogKPAJcAMWycx5UaulJwcdRxkUx9qDKM8Fu7REVxjxrRChw9xjdW0tW19a0uJ_hcF2qQpwQ2Pn0Q-U3PFedljYo7AA5q-fbmwpdyvS-0Plyh7inK0Oed9fJd0fqpOHbO6rF-wSzszO1SoT8JtlNiodxu4v9pKl9JED2rcC5zDhp9RkUxza5DW-YeBWalu3B0SW61WG0&quot; loading=&quot;lazy&quot; /&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;section&gt;&lt;h2&gt;状态图示例&lt;a href=&quot;#状态图示例&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div&gt;&lt;div&gt;&lt;img alt=&quot;@startuml
+[*] --&amp;gt; 草稿
+
+草稿 --&amp;gt; 待审核 : 提交
+待审核 --&amp;gt; 草稿 : 驳回
+待审核 --&amp;gt; 已发布 : 审核通过
+已发布 --&amp;gt; 已归档 : 到期归档
+已发布 --&amp;gt; 草稿 : 撤回修改
+
+state 已发布 {
+	[*] --&amp;gt; 可见
+	可见 --&amp;gt; 隐藏 : 手动隐藏
+	隐藏 --&amp;gt; 可见 : 恢复展示
+}
+
+已归档 --&amp;gt; [*]
+@enduml&quot; src=&quot;https://www.plantuml.com/plantuml/svg/SoWkIImgAStDuOhMYbNGrRLJUD7R-Np5VYuk20qMUhglzUcwXSyMx52mKdZMF-79hYLS22647g3iovMRdywUXoRxTFkcf_qJd-ve1Yg02BzicFLYVpiNGWAcRE-aPmiNWvHrR7WsPpw4YwOCRjUpIKk0TZtPl-xPb9rSN41_bAGYMLNDnGdpqTF-zI-MDt9nGcYmqCjP4rvCxmSPqjdzj6i5XCl52HL6Q0AfQ5pqT4dlqurJdo_PnLNBnOLm9aWPq0ukXzIy56080W00&quot; loading=&quot;lazy&quot; /&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;section&gt;&lt;h2&gt;用例图示例&lt;a href=&quot;#用例图示例&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div&gt;&lt;div&gt;&lt;img alt=&quot;@startuml
+left to right direction
+actor 游客
+actor 用户
+actor 管理员
+
+rectangle 博客系统 {
+	usecase &amp;quot;浏览文章&amp;quot; as UC1
+	usecase &amp;quot;搜索内容&amp;quot; as UC2
+	usecase &amp;quot;发表评论&amp;quot; as UC3
+	usecase &amp;quot;点赞收藏&amp;quot; as UC4
+	usecase &amp;quot;审核评论&amp;quot; as UC5
+	usec&quot; src=&quot;https://www.plantuml.com/plantuml/svg/SoWkIImgAStDuSf9JIjHACbNACfCpoXHICaiIaqkoSpFuqfCBialKdYsOyVJTOkWdETJLZphs0xZh5luV4BRquapkBX0MXBpqdDI5PxspW8gVxvvz_FTynMgkJXBYrEJ4ujJ5PIURUr_iRpZsRJsvwiNA2aa5Yk4EXiYIq-OytpBegTjhK_NxOHA6o59F-sV-6BXYXVhMrwismMLDaQIVjwqyyNMUS-cR7inlHygROAiUzt2PmjseEWsHJNywOvc5AUPSTLoSK6yhg2hQmTsB0hNY0iI5d1P52wQh34gruGB7dHG4LCC4JCkXzIy563q0000&quot; loading=&quot;lazy&quot; /&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;section&gt;&lt;h2&gt;组件图示例&lt;a href=&quot;#组件图示例&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div&gt;&lt;div&gt;&lt;img alt=&quot;@startuml
+package &amp;quot;Firefly Site&amp;quot; {
+	[Astro App] as App
+	[Markdown Parser] as Parser
+	[PlantUML Encoder] as Encoder
+	[Theme Switcher] as Theme
+	[Search Indexer] as Search
+}
+
+cloud &amp;quot;PlantUML Server&amp;quot; as &quot; src=&quot;https://www.plantuml.com/plantuml/svg/JL71IiGm43sRhnXwNxptiEmY2e8B2xKdyJ1DnZOqJMgIxYhYlpj9iyLJXlSUyzwR74947vV9Y1dbY3r1zQGzVPXlQ7Ia2dx4tTinHE_WEC_lW26zZ9tGZyfTBPpH1_APMKScpmPjR4yly6YbKuKjCzEl0qq4pLL7EHGoGqmrX5uEy6mLVHLgXSIl4DAuHK6rRM_8NyXNsReL2YDs6BZ1WxEHR8GcEa-PBeWG71vskts92ZNCQO2fj145JvAIbpMK9vYJBvyAEkFa6CHDaFUrhFFqkL2842xzPhHshI7ajg3OwDxeVc2LbvkgrAwXMxHH78e_GgSR_0zqgvMCa4Kkn20EP1Ld-WC0&quot; loading=&quot;lazy&quot; /&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;section&gt;&lt;h2&gt;部署图示例&lt;a href=&quot;#部署图示例&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div&gt;&lt;div&gt;&lt;img alt=&quot;@startuml
+node &amp;quot;User Device&amp;quot; {
+	artifact &amp;quot;Browser&amp;quot;
+}
+
+node &amp;quot;CDN / Edge&amp;quot; {
+	artifact &amp;quot;Static Assets&amp;quot;
+}
+
+node &amp;quot;Cloudflare Worker&amp;quot; {
+	artifact &amp;quot;SSR Handler&amp;quot;
+}
+
+node &amp;quot;PlantUML Service&amp;quot; {
+	artifact &amp;quot;SVG Re&quot; src=&quot;https://www.plantuml.com/plantuml/svg/RP6nRi9038RdtbDOsL7s3XKj83eKgBZIpYRdf87B7RKT6Ag-UqyHgaBI-Vy--xSy5KNMjl4cH4UGxOGOvdIk2yhWszobi2wnKCYUE5vIc9aVSsLdypNai73L4BMAMXVmA48gVS77rfKUcU0ZyZ4D6tXs2yyOdBzPy-enw6xr0fRudrxsVGbR2exuQZbKtACaSxC_K4AiHiPHoHNoqSLBW5aCIa4xz-zAc4mUXeV0FImNRt2Gl139wwOQuRt-2MRwQaaKJccvkGqxVDIWSz31AOgEPlVFJ619Mdo2gx5YR43EbPccD3to5m00&quot; loading=&quot;lazy&quot; /&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;section&gt;&lt;h2&gt;ER 图示例&lt;a href=&quot;#er-图示例&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div&gt;&lt;div&gt;&lt;img alt=&quot;@startuml
+entity User {
+	*id : uuid &amp;lt;&amp;lt;PK&amp;gt;&amp;gt;
+	--
+	username : varchar
+	email : varchar
+	created_at : datetime
+}
+
+entity Post {
+	*id : uuid &amp;lt;&amp;lt;PK&amp;gt;&amp;gt;
+	--
+	author_id : uuid &amp;lt;&amp;lt;FK&amp;gt;&amp;gt;
+	title : varchar
+	content : &quot; src=&quot;https://www.plantuml.com/plantuml/svg/VP7F2i8m3CRFpLFqBEm5XWn1yE9b5yyIry0AwphQr3zCtzquKHnkExLyNvDVldGJ6GCdrm2rRFcc3v62xa6jhD6vJacEzRhS5mMeB0ELn6xHaNXd35MD0HGvjCslK0L29dD45jN8bQqZUC27KVh82mnCNFjm_3LtWod5pOXS-PQbfqXCLmRLfLDZOxs0tdhdNXNpz4w6cs2_Wa_89szkN_nixc6fztkM-VuTFjUNO9dYoFdCbkjtemZ3sp-tnWWRQetysXC0&quot; loading=&quot;lazy&quot; /&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;section&gt;&lt;h2&gt;时序图示例（登录与刷新令牌）&lt;a href=&quot;#时序图示例登录与刷新令牌&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div&gt;&lt;div&gt;&lt;img alt=&quot;@startuml
+autonumber
+actor User as 用户
+participant Web as 前端页面
+participant API as 网关接口
+participant Auth as 认证服务
+database Redis as 会话缓存
+
+用户 -&amp;gt; 前端页面 : 输入账号密码并提交
+前端页面 -&amp;gt; 网关接口 : POST /login
+网关接口 -&amp;gt; 认证服务 : &quot; src=&quot;https://www.plantuml.com/plantuml/svg/bPBBJW8n04Nt_OhkZKXSkZ2uT2Nn4PUc35KcmWoPTZw01SymWa6D60WFmHWDZ8aFee3-3EsKlx282mg9mMtlkTFJcmaGYYngnw80sTGqx5W8Mm1frBJW0S4MH0Hw5_SyqmDnoUcQ7aS6XOSuD4bOrl4UtN7ZTLnjAlbMSFkdEJndoMT-rcQ5MpMtQMG2Y6vBk0bUSLYk0SA8eX0Y6ExYi4ucyMXm8zogDoYnpZK0Km-ukgdS2pUW-2onP5kytB52ZxafhvvWxs-yK1nzj822okgiagm6T_RsuLhKFD4De4GIdPMJAAytnWzvbkvmfmkKJBApff9bgR8qWXO-jZ29757p51jpdKKNf6cOa2aCL-RAgjpY1kj-F_JAVJQyv9aYozK0yFbywYV5LvfNQb2UW-Lc-JLORfW_7xima1XskTFyvq3ywabvqLAZoDAet_AoUH30HbZ-wDy0&quot; loading=&quot;lazy&quot; /&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;
+&lt;section&gt;&lt;h2&gt;C4 风格容器图示例&lt;a href=&quot;#c4-风格容器图示例&quot;&gt;&lt;span&gt;#&lt;/span&gt;&lt;/a&gt;&lt;/h2&gt;&lt;div&gt;&lt;div&gt;&lt;img alt=&quot;@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+Person(user, &amp;quot;博客访客&amp;quot;, &amp;quot;阅读文章与搜索内容&amp;quot;)
+
+System_Boundary(system, &amp;quot;Firefly Blog&amp;quot;) {
+	Container(we&quot; src=&quot;https://www.plantuml.com/plantuml/svg/PL9TRn9157rsVyN8qn8j--AJJwNOhuIcXAKsFf5TTe2rmooPdIqbniJKKeq9bcYjZQr1i2PD6XU_6YiczSymm_8ldDb5fEdBPkwzvvvxxpaxwrA3KA-2b9isBY3FWXv1e4nfrRshQSIe9KesBNkcvq9IS325c2OAJaMh8WFBjXcNMiWsjTITcOnChQsajOhXKaX4AfyI7OQD8KbKvGWb0udhO5MItGOnrdp7_6xW_n7Vc8X7XusWzviVF1kUVHXSlEIju-6FBjjjCFzNBAueUbtGLl9pZeSjWzHLDun5tu9DO17LmHnoIh4uUAJScCnLQz0KY7LeWcIrAeSaNKeSS0lecn1HA3FyuXjllnvrpaVlksBie7yowByI0wTP7B8HhgphMR0U1h8pXHpFAYA3m77IbLbsiZDixVBZ9dlH6Pxr8lgWzvD_tRx2UizKnufAgkW5TEgGSAiLWsnOJWq33QoQ3s4XAXcbiCW-7xBjqubImVaExxTOuob_yuKt_Qkxkz0WXRBSFNo0PMp1BKcI4MH56rkX1dkjmUKHQqXE_l69q5sGF9veFhz5rN-Eoywnqq27P3EIOhZVvizRGB-_2DZHPT0vbOvb8Hfx7TaWh1wzzILyAPVBw08Y4M5jed0a5912HvPSWu-H_xKJFmtREuZKcEQSNCxRdu9UbpM-Z_RzeDUSnanT5KsEjfU7o0lIoGUhQxbyUduXbyykBoxbrBWo2x4bElu2&quot; loading=&quot;lazy&quot; /&gt;&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;</content:encoded></item></channel></rss>
