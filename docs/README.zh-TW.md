@@ -8,7 +8,7 @@
 > 
 > ![Node.js >= 22](https://img.shields.io/badge/node.js-%3E%3D22-brightgreen) 
 ![pnpm >= 9](https://img.shields.io/badge/pnpm-%3E%3D9-blue)
-![Astro](https://img.shields.io/badge/Astro-6.1.5-orange)
+![Astro](https://img.shields.io/badge/Astro-6.4.2-orange)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-blue)
 >
 > [![Stars](https://img.shields.io/github/stars/CuteLeaf/Firefly?style=social)](https://github.com/CuteLeaf/Firefly/stargazers)
@@ -81,7 +81,7 @@
 - [x] **頁尾配置** - HTML 內容注入，完全自訂
 - [x] **亮暗色模式** - 支援亮色/暗色/跟隨系統三種模式
 - [x] **導覽列自訂** - Logo、標題、連結全面自訂
-- [x] **桌布模式切換** - 橫幅桌布、全螢幕桌布、純色背景
+- [x] **桌布模式切換** - 橫幅桌布、全螢幕桌布、全螢幕透明桌布、純色背景
 - [x] **主題色自訂** - 360° 色相調節
 
 
@@ -125,6 +125,9 @@
    pnpm dev
    ```
    部落格將在 `http://localhost:4321` 可用
+
+### 社區教程
+Cloudflare Workers部署：[【不用服务器，无需备案，零成本搭建一个自己的个人博客】](https://www.bilibili.com/video/BV1hX9XBKEhm)
 
 ### 平台託管部署
 - **參考[官方指南](https://docs.astro.build/zh-cn/guides/deploy/)將部落格部署至 Vercel, Netlify, Cloudflare Pages, EdgeOne Pages 等。**
@@ -178,7 +181,7 @@ src/
 │   ├── footerConfig.ts       # 頁尾配置
 │   ├── FooterConfig.html     # 頁尾HTML內容
 │   ├── expressiveCodeConfig.ts # 程式碼高亮配置
-│   ├── sakuraConfig.ts       # 櫻花特效配置
+│   ├── effectsConfig.ts      # 動畫特效配置（櫻花等）
 │   ├── fontConfig.ts         # 字型配置
 │   ├── sidebarConfig.ts      # 側邊欄版面配置配置
 │   ├── navBarConfig.ts       # 導覽列配置

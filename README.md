@@ -3,22 +3,22 @@
 
 <div align="center">
 
-# 流萤 / Firefly 
+# 流萤 / Firefly
 > 一款清新美观的 Astro 静态博客主题模板
-> 
-> ![Node.js >= 22](https://img.shields.io/badge/node.js-%3E%3D22-brightgreen) 
+>
+> ![Node.js >= 22](https://img.shields.io/badge/node.js-%3E%3D22-brightgreen)
 ![pnpm >= 9](https://img.shields.io/badge/pnpm-%3E%3D9-blue)
-![Astro](https://img.shields.io/badge/Astro-6.1.5-orange)
+![Astro](https://img.shields.io/badge/Astro-6.4.2-orange)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-blue)
 >
 > [![Stars](https://img.shields.io/github/stars/CuteLeaf/Firefly?style=social)](https://github.com/CuteLeaf/Firefly/stargazers)
 [![Forks](https://img.shields.io/github/forks/CuteLeaf/Firefly?style=social)](https://github.com/CuteLeaf/Firefly/network/members)
 [![Issues](https://img.shields.io/github/issues/CuteLeaf/Firefly)](https://github.com/CuteLeaf/Firefly/issues)
-> 
+>
 > [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8Z41NQALY)
 >
 > **QQ交流群：[1087127207](https://qm.qq.com/q/ZGsFa8qX2G)**
-> 
+>
 > ![GitHub License](https://img.shields.io/github/license/CuteLeaf/Firefly)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/CuteLeaf/Firefly)
 [![爱发电赞助](https://img.shields.io/badge/爱发电-赞助作者-ff69b4.svg)](https://ifdian.net/a/cuteleaf)
@@ -33,7 +33,7 @@
 🚀 快速指南：
 [**🖥️在线预览**](https://firefly.cuteleaf.cn/) /
 [**📝使用文档**](https://docs-firefly.cuteleaf.cn/) /
-[**🍀我的博客**](https://blog.cuteleaf.cn) 
+[**🍀我的博客**](https://blog.cuteleaf.cn)
 
 ⚡ 静态站点生成: 基于Astro的超快加载速度和SEO优化
 
@@ -49,7 +49,7 @@
 >[!TIP]
 >
 >Firefly 是一款基于 Astro 框架和 Fuwari 模板开发的清新美观且现代化个人博客主题模板，专为技术爱好者和内容创作者设计。该主题融合了现代 Web 技术栈，提供了丰富的功能模块和高度可定制的界面，让您能够轻松打造出专业且美观的个人博客网站。
-> 
+>
 >在重要的布局上，Firefly 创新性地增加了左右双侧边栏、文章网格(多列)布局、瀑布流布局。
 >
 >增加了站点统计、日历、文章目录、音乐播放器、快捷分类导航等小组件，让侧边栏和整体页面布局更加丰富。
@@ -81,7 +81,7 @@
 - [x] **页脚配置** - HTML 内容注入，完全自定义
 - [x] **亮暗色模式** - 支持亮色/暗色/跟随系统三种模式
 - [x] **导航栏自定义** - Logo、标题、链接全面自定义
-- [x] **壁纸模式切换** - 横幅壁纸、全屏透明壁纸、纯色背景
+- [x] **壁纸模式切换** - 横幅壁纸、全屏壁纸、全屏透明壁纸、纯色背景
 - [x] **主题色自定义** - 360° 色相调节
 
 如果你有好用的功能和优化，请提交 [Pull Request](https://github.com/CuteLeaf/Firefly/pulls)
@@ -100,7 +100,7 @@
    git clone https://github.com/Cuteleaf/Firefly.git
    cd Firefly
    ```
-   
+
    **先 [Fork](https://github.com/CuteLeaf/Firefly/fork) 到自己仓库在克隆（推荐），记得先点 Star 在 Fork 哦！**
 
    ```bash
@@ -111,7 +111,7 @@
    ```bash
    # 如果没有安装 pnpm，先安装
    npm install -g pnpm
-   
+
    # 安装项目依赖
    pnpm install
    ```
@@ -124,6 +124,9 @@
    pnpm dev
    ```
    博客将在 `http://localhost:4321` 可用
+
+### 社区教程
+Cloudflare Workers部署：[【不用服务器，无需备案，零成本搭建一个自己的个人博客】](https://www.bilibili.com/video/BV1hX9XBKEhm)
 
 ### 平台托管部署
 - **参考[官方指南](https://docs.astro.build/zh-cn/guides/deploy/)将博客部署至 Vercel, Netlify, Cloudflare Pages, EdgeOne Pages 等。**
@@ -177,7 +180,7 @@ src/
 │   ├── footerConfig.ts       # 页脚配置
 │   ├── FooterConfig.html     # 页脚HTML内容
 │   ├── expressiveCodeConfig.ts # 代码高亮配置
-│   ├── sakuraConfig.ts       # 樱花特效配置
+│   ├── effectsConfig.ts      # 动画特效配置（樱花等）
 │   ├── fontConfig.ts         # 字体配置
 │   ├── sidebarConfig.ts      # 侧边栏布局配置
 │   ├── navBarConfig.ts       # 导航栏配置
@@ -239,8 +242,8 @@ comment: true    # 是否允许评论
 
 ### 技术栈
 
-- [Astro](https://astro.build) 
-- [Tailwind CSS](https://tailwindcss.com) 
+- [Astro](https://astro.build)
+- [Tailwind CSS](https://tailwindcss.com)
 - [Iconify](https://iconify.design)
 
 ### 灵感项目
@@ -252,7 +255,7 @@ comment: true    # 是否允许评论
 
 ### 其他参考
 - 博主`霞葉`的 [Bangumi 收藏](https://kasuha.com/posts/fuwari-enhance-ep2/) 页面组件
-- 哔哩哔哩up主 `公公的日常` 的Q版 [流萤看板娘Spine切片数据](https://www.bilibili.com/video/BV1fuVzzdE5y) 
+- 哔哩哔哩up主 `公公的日常` 的Q版 [流萤看板娘Spine切片数据](https://www.bilibili.com/video/BV1fuVzzdE5y)
 
 ## 📝 许可协议
 
@@ -262,7 +265,7 @@ comment: true    # 是否允许评论
 
 **版权声明：**
 - Copyright (c) 2024 [saicaca](https://github.com/saicaca) - [fuwari](https://github.com/saicaca/fuwari)
-- Copyright (c) 2025 [CuteLeaf](https://github.com/CuteLeaf) - [Firefly](https://github.com/CuteLeaf/Firefly) 
+- Copyright (c) 2025 [CuteLeaf](https://github.com/CuteLeaf) - [Firefly](https://github.com/CuteLeaf/Firefly)
 
 根据 MIT 开源协议，你可以自由使用、修改、分发代码，但需保留上述版权声明。
 

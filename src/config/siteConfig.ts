@@ -119,6 +119,14 @@ export const siteConfig: SiteConfig = {
 	bangumi: {
 		// Bangumi用户ID
 		userId: "1143164",
+		// 数据模式：static=构建时获取，dynamic=客户端实时获取
+		// static 模式在构建时获取数据并静态渲染，部署后数据不更新
+		// dynamic 模式在浏览器中实时请求 API，始终显示最新数据
+		mode: "dynamic",
+		// Bangumi API 地址
+		apiUrl: "https://api.bangumi.one",
+		// 详情页地址
+		subjectBaseUrl: "https://bangumi.one/subject/",
 		// 条目类型排序，数组中的类型将按顺序优先展示
 		// 可选值: "anime" | "book" | "music" | "game" | "real" (暂不支持"real"类型)
 		// 未列出的类型将按默认顺序排在后面
@@ -182,12 +190,14 @@ export const siteConfig: SiteConfig = {
 			websiteId: "",
 			// Umami JS地址，支持使用自建
 			scriptUrl: "https://cloud.umami.is/script.js",
+			// Umami 会话回放脚本地址，支持使用自建
+			replaysScriptUrl: "https://cloud.umami.is/recorder.js",
 			// 是否追踪出站链接
 			trackOutboundLinks: true,
 			// 是否收集浏览器性能指标
 			collectWebVitals: false,
 			// 会话回放配置
-			relpays: {
+			replays: {
 				// 是否启用会话回放
 				enabled: false,
 				// 录制会话采样率，范围 0-1，例如 0.15 表示记录 15% 的会话
