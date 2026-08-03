@@ -266,6 +266,16 @@ location: China # 位置
 | `pnpm new-d <content>`     | 创建一条动态                           |
 | `pnpm new-dynamic <content>` | 创建一条动态（完整命令）              |
 | `pnpm astro ...`           | 执行 `astro add`, `astro check` 等指令 |
+
+### 博客小助手
+
+不想记命令时，在项目根目录运行：
+
+```bash
+./blog
+```
+
+菜单可以新建草稿、公开或隐藏文章、本地预览、运行完整检查，以及提交并推送更新。新文章默认是草稿，本地预览可见，正式网站不会显示；准备好后在菜单中将它改为公开即可。
 | `pnpm astro --help`        | 显示 Astro CLI 帮助                    |
 
 ## 🙏 致谢
