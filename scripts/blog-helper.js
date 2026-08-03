@@ -7,6 +7,7 @@ import matter from "gray-matter";
 
 const repoRoot = process.cwd();
 const postsDir = path.join(repoRoot, "src/content/posts");
+const dialogConfigPath = path.join(repoRoot, "scripts/blog-helper.dialogrc");
 const input = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
@@ -17,27 +18,25 @@ const hasDialog =
 	process.stdout.isTTY &&
 	spawnSync("dialog", ["--version"], { stdio: "ignore" }).status === 0;
 
-const colors = {
-	reset: "\x1b[0m",
-	bold: "\x1b[1m",
-	dim: "\x1b[2m",
-	cyan: "\x1b[36m",
-	green: "\x1b[32m",
-	yellow: "\x1b[33m",
-	red: "\x1b[31m",
-};
-
-function color(name, text) {
-	return process.stdout.isTTY ? `${colors[name]}${text}${colors.reset}` : text;
-}
-
 function dialog(args, { allowCancel = true } = {}) {
 	const result = spawnSync(
 		"dialog",
-		["--stdout", "--clear", "--backtitle", "Firefly 博客小助手", ...args],
+		[
+			"--stdout",
+			"--clear",
+			"--no-shadow",
+			"--no-lines",
+			"--no-mouse",
+			"--ok-label",
+			"确定",
+			"--cancel-label",
+			"返回",
+			...args,
+		],
 		{
 			cwd: repoRoot,
 			encoding: "utf8",
+			env: { ...process.env, DIALOGRC: dialogConfigPath },
 			stdio: ["inherit", "pipe", "inherit"],
 		},
 	);
@@ -49,10 +48,10 @@ function dialog(args, { allowCancel = true } = {}) {
 
 function notice(title, message) {
 	if (hasDialog) {
-		dialog(["--title", title, "--msgbox", message, "9", "66"]);
+		dialog(["--title", title, "--msgbox", message, "8", "58"]);
 		return;
 	}
-	console.log(`\n${color("green", `✓ ${title}`)}\n${message}\n`);
+	console.log(`\n${title}\n${message}\n`);
 }
 
 function run(command, args, options = {}) {
@@ -140,9 +139,9 @@ async function ask(question, defaultValue = "") {
 			"--title",
 			question,
 			"--inputbox",
-			question,
-			"9",
-			"66",
+			"",
+			"8",
+			"58",
 			defaultValue,
 		]);
 	}
@@ -157,7 +156,7 @@ async function confirm(question, defaultYes = false) {
 	if (hasDialog) {
 		const args = ["--title", "请确认"];
 		if (!defaultYes) args.push("--defaultno");
-		const result = dialog([...args, "--yesno", question, "9", "66"]);
+		const result = dialog([...args, "--yesno", question, "8", "58"]);
 		return result !== null;
 	}
 	const hint = defaultYes ? "Y/n" : "y/N";
@@ -170,7 +169,8 @@ async function confirm(question, defaultYes = false) {
 
 async function createPost() {
 	const title = await ask("文章标题");
-	if (title === null || !title) {
+	if (title === null) return;
+	if (!title) {
 		console.log("已取消：标题不能为空。");
 		return;
 	}
@@ -184,9 +184,9 @@ async function createPost() {
 			"--title",
 			"文章信息",
 			"--form",
-			"补充文章信息，之后仍可在 Markdown 中修改",
-			"18",
-			"78",
+			"",
+			"14",
+			"68",
 			"5",
 			"文件名",
 			"1",
@@ -268,12 +268,12 @@ async function choosePost() {
 	if (hasDialog) {
 		const filter = dialog([
 			"--title",
-			"筛选文章",
+			"文章范围",
 			"--no-tags",
 			"--menu",
-			"先选择要查看的文章状态",
-			"14",
-			"58",
+			"",
+			"11",
+			"50",
 			"5",
 			"all",
 			`全部文章（${posts.length}）`,
@@ -306,9 +306,9 @@ async function choosePost() {
 			"选择文章",
 			"--no-tags",
 			"--menu",
-			"↑↓ 选择，Enter 确认，Esc 返回",
-			"22",
-			"82",
+			"",
+			"20",
+			"76",
 			"14",
 			...posts.flatMap((post, index) => [
 				String(index),
@@ -357,8 +357,8 @@ function preview() {
 }
 
 function validate() {
-	console.log(`\n${color("bold", "正在执行完整检查")}`);
-	console.log(color("dim", "Biome → Astro → TypeScript → Production build\n"));
+	console.log("\n正在执行完整检查");
+	console.log("Biome -> Astro -> TypeScript -> Production build\n");
 	run("pnpm", ["exec", "biome", "ci", "./src"]);
 	run("pnpm", ["check"]);
 	run("pnpm", ["type-check"]);
@@ -376,15 +376,15 @@ async function publish() {
 	if (hasDialog) {
 		dialog([
 			"--title",
-			"准备发布",
+			"待发布改动",
 			"--scrollbar",
 			"--msgbox",
-			`即将提交以下改动：\n\n${status}`,
-			"18",
-			"82",
+			status,
+			"16",
+			"76",
 		]);
 	} else {
-		console.log(`\n${color("yellow", "准备发布以下改动：")}\n`);
+		console.log("\n准备发布以下改动：\n");
 		console.log(status);
 		console.log("");
 	}
@@ -407,17 +407,17 @@ async function chooseMainAction() {
 		summary.changes === null
 			? "改动状态不可用"
 			: `${summary.changes} 个未提交文件`;
-	const dashboard = `${summary.published} 篇公开  ·  ${summary.drafts} 篇草稿  ·  ${changeSummary}`;
+	const dashboard = `公开 ${summary.published}  草稿 ${summary.drafts}  ${changeSummary}`;
 	if (hasDialog) {
 		return dialog([
 			"--title",
-			"写作工作台",
+			"博客小助手",
 			"--no-tags",
 			"--menu",
-			`${dashboard}\n\n无需记命令，选择接下来要做的事`,
-			"18",
-			"70",
-			"8",
+			dashboard,
+			"14",
+			"58",
+			"6",
 			"new",
 			"写一篇新草稿",
 			"visibility",
@@ -433,10 +433,8 @@ async function chooseMainAction() {
 		]);
 	}
 
-	console.log(`\n${color("cyan", "╭────────────────────────╮")}`);
-	console.log(color("cyan", "│     Firefly 写作台     │"));
-	console.log(color("cyan", "╰────────────────────────╯"));
-	console.log(color("dim", dashboard));
+	console.log("\n博客小助手");
+	console.log(dashboard);
 	console.log("1. 写一篇新草稿");
 	console.log("2. 公开或隐藏文章");
 	console.log("3. 本地预览");
