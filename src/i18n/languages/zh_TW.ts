@@ -17,13 +17,32 @@ export const zh_TW: Translation = {
 
 	[Key.tags]: "標籤",
 	[Key.categories]: "分類",
-	[Key.allCategories]: "所有分類",
-	[Key.allTags]: "所有標籤",
+	[Key.allCategories]: "全部分類",
+	[Key.allTags]: "全部標籤",
 	[Key.recentPosts]: "最新文章",
 	[Key.postList]: "文章列表",
 	[Key.tableOfContents]: "文章目錄",
 	[Key.tocEmpty]: "目前頁面沒有目錄",
 	[Key.music]: "音樂",
+	[Key.dynamic]: "動態",
+	[Key.latestDynamics]: "最新動態",
+	[Key.moreDynamics]: "更多動態",
+	[Key.dynamicDescription]: "隨手記下此刻的想法與日常。",
+	[Key.dynamicEmpty]: "還沒有發佈動態",
+	[Key.dynamicSearch]: "搜尋動態...",
+	[Key.dynamicNoResults]: "沒有找到符合的動態",
+	[Key.dynamicLoading]: "正在載入動態",
+	[Key.dynamicAllYears]: "全部年份",
+	[Key.dynamicLoadMore]: "載入更多",
+	[Key.dynamicBackToList]: "返回動態列表",
+	[Key.dynamicProfile]: "查看 {name} 的資料",
+	[Key.dynamicPermalink]: "此動態的固定連結",
+	[Key.dynamicCollapseGallery]: "收起",
+	[Key.dynamicViewOriginal]: "查看大圖",
+	[Key.dynamicPreviousImage]: "上一張圖片",
+	[Key.dynamicNextImage]: "下一張圖片",
+	[Key.dynamicViewImage]: "查看圖片 {index}",
+	[Key.dynamicSelectImage]: "切換到圖片 {index}",
 	[Key.musicNoPlaying]: "暫未播放",
 	[Key.musicLyrics]: "歌詞",
 	[Key.musicVolume]: "音量",
@@ -69,6 +88,8 @@ export const zh_TW: Translation = {
 	[Key.minutesCount]: "分鐘",
 	[Key.postCount]: "篇文章",
 	[Key.postsCount]: "篇文章",
+	[Key.tagsCount]: "個標籤",
+	[Key.noData]: "暫無資料",
 
 	[Key.themeColor]: "主題色相",
 
@@ -148,6 +169,45 @@ export const zh_TW: Translation = {
 	[Key.bangumiLastUpdated]: "數據更新於",
 	[Key.bangumiUpdatedAt]: "構建時間",
 	[Key.bangumiDataStatic]: "靜態數據",
+
+	// 追番
+	[Key.anime]: "追番",
+	[Key.animeSubtitle]: "我的追番列表，數據來自 Bilibili 和 TMDB",
+	[Key.animeTotal]: "總追番",
+	[Key.animeAverageRating]: "平均評分",
+	[Key.animeSearch]: "搜尋番劇...",
+	[Key.animeAllTypes]: "全部",
+	[Key.animeTV]: "TV 動畫",
+	[Key.animeMovie]: "電影",
+	[Key.animeRatingDesc]: "評分最高",
+	[Key.animeRatingAsc]: "評分最低",
+	[Key.animeDateDesc]: "最新發布",
+	[Key.animeDateAsc]: "最早發布",
+	[Key.animeNoResults]: "沒有找到匹配的番劇",
+	[Key.animeLastUpdated]: "數據更新於",
+	[Key.animeSource]: "數據來源",
+	[Key.animeEpStatus]: "進度",
+	[Key.animeViewDetails]: "查看詳情",
+	[Key.animeNotConfigured]: "未配置追番資料來源",
+	[Key.animeNotConfiguredDesc]:
+		"請在 src/config/siteConfig.ts 中配置 Bilibili UID 或 TMDB API Key",
+	[Key.animeBilibiliAvg]: "Bilibili 均分",
+	[Key.animeTmdbAvg]: "TMDB 均分",
+	[Key.animeDualSynced]: "雙源已同步",
+	[Key.animeNoOverview]: "暫無簡介",
+	[Key.animeClose]: "關閉",
+	[Key.animeSynopsis]: "劇情簡介",
+	[Key.animeWatchNow]: "立即觀看",
+	[Key.animeViewTmdb]: "查看 TMDB 詳情",
+	[Key.animeAllWithCount]: "全部 ({count})",
+	[Key.animeTVWithCount]: "TV ({count})",
+	[Key.animeMovieWithCount]: "電影 ({count})",
+	[Key.animeTypeAnime]: "番劇",
+	[Key.animeTypeMovie]: "電影",
+	[Key.animeTypeDocumentary]: "紀錄片",
+	[Key.animeTypeChinese]: "國創",
+	[Key.animeTypeDrama]: "電視劇",
+	[Key.animeTypeConcert]: "演唱會",
 
 	// 分頁
 	[Key.paginationFirst]: "首頁",
@@ -234,28 +294,38 @@ export const zh_TW: Translation = {
 	[Key.overlayBlur]: "背景模糊度",
 	[Key.overlayCardOpacity]: "卡片透明度",
 
+	// 設定面板標籤
+	[Key.settingsTabAppearance]: "外觀",
+	[Key.settingsTabWallpaper]: "壁紙",
+	[Key.settingsTabEffects]: "特效",
+
+	// 卡片樣式
+	[Key.cardSettings]: "卡片樣式",
+	[Key.cardBorder]: "卡片邊框和陰影",
+	[Key.cardFollowTheme]: "卡片跟隨主題色",
+
 	// 文章佈局
 	[Key.postListLayout]: "文章佈局",
 	[Key.postListLayoutList]: "清單",
 	[Key.postListLayoutGrid]: "網格",
 
-	// 贊助頁面
-	[Key.sponsor]: "贊助",
-	[Key.sponsorTitle]: "贊助支持",
+	// 打賞頁面
+	[Key.sponsor]: "打賞",
+	[Key.sponsorTitle]: "打賞支持",
 	[Key.sponsorDescription]:
-		"如果我的內容對你有幫助，歡迎通過以下方式贊助我，你的支持是我持續創作的動力！",
-	[Key.sponsorMethods]: "贊助方式",
-	[Key.sponsorList]: "贊助列表",
-	[Key.sponsorEmpty]: "暫無贊助記錄",
+		"如果我的內容對你有幫助，歡迎通過以下方式打賞我，你的支持是我持續創作的動力！",
+	[Key.sponsorMethods]: "打賞方式",
+	[Key.sponsorList]: "打賞列表",
+	[Key.sponsorEmpty]: "暫無打賞記錄",
 	[Key.sponsorAmount]: "金額",
 	[Key.sponsorDate]: "日期",
 	[Key.sponsorMessage]: "留言",
 	[Key.sponsorAnonymous]: "匿名",
-	[Key.scanToSponsor]: "掃碼贊助",
-	[Key.sponsorGoTo]: "前往贊助",
+	[Key.scanToSponsor]: "掃碼打賞",
+	[Key.sponsorGoTo]: "前往打賞",
 	[Key.sponsorButton]: "支持與分享",
 	[Key.sponsorButtonText]:
-		"如果這篇文章對你有幫助，歡迎分享給更多人或贊助支持！",
+		"如果這篇文章對你有幫助，歡迎分享給更多人或打賞支持！",
 
 	[Key.shareOnSocial]: "文章分享",
 	[Key.shareOnSocialDescription]: "如果這篇文章對你有幫助，歡迎分享給更多人！",
@@ -263,6 +333,7 @@ export const zh_TW: Translation = {
 	// 站點統計
 	[Key.siteStats]: "站點統計",
 	[Key.siteStatsPostCount]: "文章",
+	[Key.siteStatsDynamicCount]: "動態",
 	[Key.siteStatsCategoryCount]: "分類",
 	[Key.siteStatsTagCount]: "標籤",
 	[Key.siteStatsTotalWords]: "總字數",
@@ -271,6 +342,20 @@ export const zh_TW: Translation = {
 	[Key.siteStatsDaysAgo]: "{days} 天前",
 	[Key.siteStatsDays]: "{days} 天",
 	[Key.today]: "今天",
+
+	// 站點資訊
+	[Key.siteInfo]: "站點資訊",
+	[Key.siteInfoBuildTime]: "構建時間",
+	[Key.siteInfoBuildPlatform]: "構建平台",
+	[Key.siteInfoBlogVersion]: "部落格版本",
+	[Key.siteInfoAstroVersion]: "Astro",
+	[Key.siteInfoNodeVersion]: "Node",
+	[Key.siteInfoPnpmVersion]: "pnpm",
+	[Key.siteInfoSystem]: "系統資訊",
+	[Key.siteInfoExpand]: "展開構建資訊",
+	[Key.siteInfoCollapse]: "收起構建資訊",
+	[Key.siteInfoDomain]: "站點域名",
+	[Key.siteInfoLicense]: "文章許可",
 
 	// 日曆組件
 	[Key.calendarSunday]: "日",
@@ -294,6 +379,7 @@ export const zh_TW: Translation = {
 	[Key.calendarDecember]: "12月",
 	[Key.calendar]: "站點日曆",
 	[Key.calendarHeatmapWeek]: "{month}月第{week}週，{count}篇文章",
+	[Key.advertisement]: "廣告",
 
 	[Key.shareArticle]: "分享",
 	[Key.generatingPoster]: "海報生成中...",
@@ -325,4 +411,11 @@ export const zh_TW: Translation = {
 	[Key.passwordSubmit]: "解鎖",
 	[Key.passwordError]: "密碼錯誤，請重試。",
 	[Key.passwordProtectedRss]: "本文已加密保護，請訪問網站查看。",
+
+	// 背景影片播放器
+	[Key.videoPlay]: "播放背景影片",
+	[Key.videoPause]: "暫停背景影片",
+	[Key.videoPrev]: "上一個影片",
+	[Key.videoNext]: "下一個影片",
+	[Key.videoLoadError]: "影片載入失敗",
 };

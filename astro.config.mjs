@@ -1,35 +1,47 @@
 import { setMaxListeners } from "node:events";
+import cloudflare from "@astrojs/cloudflare";
 import { unified } from "@astrojs/markdown-remark";
+import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import svelte from "@astrojs/svelte";
 import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections";
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers";
 import swup from "@swup/astro";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "astro/config";
+import { defineConfig, fontProviders } from "astro/config";
 import expressiveCode from "astro-expressive-code";
 import icon from "astro-icon";
-import katex from "katex";
-import rehypeAutolinkHeadings from "rehype-autolink-headings";
-import rehypeComponents from "rehype-components"; /* Render the custom directive content */
-import rehypeKatex from "rehype-katex";
-import "katex/dist/contrib/mhchem.mjs"; // 加载 mhchem 扩展
-import cloudflare from "@astrojs/cloudflare";
-import mdx from "@astrojs/mdx";
+import { pluginLanguageLogo } from "ec-lang-logo"; /* Language Logo */
 import { pluginCollapsible } from "expressive-code-collapsible"; /* Collapsible */
 import { pluginLanguageBadge } from "expressive-code-language-badge"; /* Language Badge */
+import katex from "katex";
+import "katex/dist/contrib/mhchem.mjs"; // 加载 mhchem 扩展
+import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeCallouts from "rehype-callouts";
+import rehypeCodeGroup from "rehype-code-group"; /* Tab 代码块 */
+import rehypeComponents from "rehype-components"; /* Render the custom directive content */
+import rehypeKatex from "rehype-katex";
 import rehypeSlug from "rehype-slug";
+import remarkAdmonitionToBlockquoteCallout from "remark-admonition-to-blockquote-callout";
 import remarkDirective from "remark-directive"; /* Handle directives */
 import remarkMath from "remark-math";
 import remarkSectionize from "remark-sectionize";
-import { expressiveCodeConfig, plantumlConfig, siteConfig } from "./src/config";
+import {
+	expressiveCodeConfig,
+	fontConfig,
+	fontsList,
+	mermaidConfig,
+	plantumlConfig,
+	siteConfig,
+} from "./src/config";
 import I18nKey from "./src/i18n/i18nKey";
 import { i18n } from "./src/i18n/translation";
 import { GithubCardComponent } from "./src/plugins/rehype-component-github-card.mjs";
+import { rehypeDiagramPanZoom } from "./src/plugins/rehype-diagram-panzoom.mjs";
 import rehypeEmailProtection from "./src/plugins/rehype-email-protection.mjs";
 import rehypeExternalLinks from "./src/plugins/rehype-external-links.mjs";
 import rehypeFigure from "./src/plugins/rehype-figure.mjs";
+import rehypeImageReferrerPolicy from "./src/plugins/rehype-image-referrerpolicy.mjs";
 import { rehypeMermaid } from "./src/plugins/rehype-mermaid.mjs";
 import { rehypePlantuml } from "./src/plugins/rehype-plantuml.mjs";
 import { parseDirectiveNode } from "./src/plugins/remark-directive-rehype.js";
@@ -38,6 +50,8 @@ import { remarkImageGrid } from "./src/plugins/remark-image-grid.js";
 import { remarkMermaid } from "./src/plugins/remark-mermaid.js";
 import { remarkPlantuml } from "./src/plugins/remark-plantuml.js";
 import { remarkReadingTime } from "./src/plugins/remark-reading-time.mjs";
+import { remarkWikiLink } from "./src/plugins/remark-wiki-link.js";
+import { collectUsedFontCssVars } from "./src/utils/fontHelper";
 
 if (process.env.NODE_ENV === "development") {
 	setMaxListeners(20);
@@ -56,19 +70,48 @@ export default defineConfig({
 	base: "/",
 	trailingSlash: "always",
 
+	// 字体配置 - 只加载实际使用的字体，跳过未引用的以加快构建
+	fonts: (() => {
+		// 禁用字体功能时直接返回空数组，跳过 Astro Font API 集成
+		if (!fontConfig.enable) return [];
+
+		const used = collectUsedFontCssVars(fontConfig);
+		return fontsList
+			.filter((f) => used.has(f.cssVariable))
+			.map((f) => {
+				let provider;
+				switch (f.provider) {
+					case "google":
+						provider = fontProviders.google();
+						break;
+					case "fontsource":
+						provider = fontProviders.fontsource();
+						break;
+					case "local":
+						provider = fontProviders.local();
+						break;
+					case "bunny":
+						provider = fontProviders.bunny();
+						break;
+					case "fontshare":
+						provider = fontProviders.fontshare();
+						break;
+					case "npm":
+						provider = fontProviders.npm();
+						break;
+					default:
+						provider = f.provider;
+				}
+				return { ...f, provider };
+			});
+	})(),
+
 	adapter,
 
 	// 图像优化配置
 	image: {
-		// 全局响应式布局
-		layout: "constrained",
-	},
-
-	experimental: {
-		// Rust 编译器以提升构建性能（实验性），部分平台可能会导致构建失败，可以根据需要启用或禁用
-		rustCompiler: false,
-		// 队列渲染以优化性能（实验性）
-		queuedRendering: { enabled: true },
+		// 组件可自行传入 layout/widths；这里只控制 Markdown 正文图片
+		layout: "none",
 	},
 
 	integrations: [
@@ -120,6 +163,16 @@ export default defineConfig({
 				...(expressiveCodeConfig.pluginLanguageBadge?.enable === true
 					? [pluginLanguageBadge()]
 					: []),
+				// pluginLanguageLogo 配置 - 从expressiveCodeConfig读取设置
+				...(expressiveCodeConfig.pluginLanguageLogo?.enable === true
+					? [
+							pluginLanguageLogo({
+								color: expressiveCodeConfig.pluginLanguageLogo.color ?? "mono",
+								excludedLangs:
+									expressiveCodeConfig.pluginLanguageLogo.excludedLangs ?? [],
+							}),
+						]
+					: []),
 				pluginCollapsibleSections(),
 				pluginLineNumbers(),
 				// pluginCollapsible 配置 - 从expressiveCodeConfig读取设置，使用i18n文本
@@ -153,7 +206,7 @@ export default defineConfig({
 				borderRadius: "0.75rem",
 				codeFontSize: "0.875rem",
 				codeFontFamily:
-					"'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+					"var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
 				codeLineHeight: "1.5rem",
 				frames: {},
 				textMarkers: {
@@ -171,6 +224,7 @@ export default defineConfig({
 				},
 			},
 			frames: {
+				// 保留原生复制按钮，外观由 src/styles/expressive-code.css 覆盖成主题风格
 				showCopyToClipboardButton: true,
 			},
 		}),
@@ -180,7 +234,9 @@ export default defineConfig({
 				// 根据页面开关配置过滤sitemap
 				const url = new URL(page);
 				const pathname = url.pathname;
-
+				if (pathname === "/dynamic/" && !siteConfig.pages.dynamic) {
+					return false;
+				}
 				if (pathname === "/friends/" && !siteConfig.pages.friends) {
 					return false;
 				}
@@ -196,6 +252,9 @@ export default defineConfig({
 				if (pathname === "/gallery/" && !siteConfig.pages.gallery) {
 					return false;
 				}
+				if (pathname === "/anime/" && !siteConfig.pages.anime) {
+					return false;
+				}
 
 				return true;
 			},
@@ -205,8 +264,13 @@ export default defineConfig({
 	markdown: {
 		processor: unified({
 			remarkPlugins: [
+				...(siteConfig.post.rehypeCallouts.enablePythonMarkdownAdmonitions !==
+				false
+					? [remarkAdmonitionToBlockquoteCallout]
+					: []),
 				remarkMath,
 				remarkReadingTime,
+				remarkWikiLink,
 				remarkImageGrid,
 				remarkExcerpt,
 				remarkDirective,
@@ -217,11 +281,17 @@ export default defineConfig({
 			],
 			rehypePlugins: [
 				[rehypeKatex, { katex }],
-				[rehypeCallouts, { theme: siteConfig.rehypeCallouts.theme }],
+				[rehypeCallouts, { theme: siteConfig.post.rehypeCallouts.theme }],
 				rehypeSlug,
-				rehypeMermaid,
+				rehypeCodeGroup,
+				[rehypeMermaid, mermaidConfig],
 				rehypePlantuml,
+				rehypeDiagramPanZoom,
 				rehypeFigure,
+				[
+					rehypeImageReferrerPolicy,
+					{ domains: siteConfig.imageOptimization?.noReferrerDomains || [] },
+				],
 				[rehypeExternalLinks, { siteUrl: siteConfig.site_url }],
 				[rehypeEmailProtection, { method: "base64" }], // 邮箱保护插件，支持 'base64' 或 'rot13'
 				[
@@ -267,15 +337,17 @@ export default defineConfig({
 		},
 		resolve: {
 			alias: {
-				"@rehype-callouts-theme": `rehype-callouts/theme/${siteConfig.rehypeCallouts.theme}`,
+				"@rehype-callouts-theme": `rehype-callouts/theme/${siteConfig.post.rehypeCallouts.theme}`,
 			},
 		},
 		build: {
 			minify: "esbuild",
 			esbuildOptions: {
 				minify: true,
-				// 移除 console.log 和 debugger
-				drop: ["console", "debugger"],
+				// 删除 debugger 语句；console.log / console.debug 无副作用，未使用返回值时会被 dead code elimination 移除，
+				// console.warn / console.error 保留，确保生产环境出错时仍有日志可查
+				drop: ["debugger"],
+				pure: ["console.log", "console.debug"],
 			},
 			rollupOptions: {
 				onwarn(warning, warn) {

@@ -1,79 +1,91 @@
 import {
-	LinkPreset,
 	type NavBarConfig,
 	type NavBarLink,
 	type NavBarSearchConfig,
 	NavBarSearchMethod,
-} from "../types/config";
-import { siteConfig } from "./siteConfig";
+} from "../types/navBarConfig";
 
-// 根据页面开关动态生成导航栏配置
+// ============================================================================
+// 导航栏配置 - 根据顺序动态生成导航栏链接
+// NavBar Configuration - Dynamically generate navigation bar links based on order
+// ============================================================================
 const getDynamicNavBarConfig = (): NavBarConfig => {
 	// 基础导航栏链接
-	const links: (NavBarLink | LinkPreset)[] = [
-		// 主页
-		LinkPreset.Home,
-	];
+	const links: NavBarLink[] = [];
+
+	// 主页
+	links.push(LinkPresets.Home);
 
 	// 文章及其子菜单
 	links.push({
 		name: "文章",
-		url: "/post/",
-		icon: "material-symbols:article-rounded",
+		url: "#",
+		icon: "material-symbols:article",
 		children: [
 			// 归档
-			LinkPreset.Archive,
+			LinkPresets.Archive,
+
 			// 分类
-			LinkPreset.Categories,
+			LinkPresets.Categories,
+
 			// 标签
-			LinkPreset.Tags,
+			LinkPresets.Tags,
 		],
 	});
 
-	// 根据配置决定是否添加友链，在siteConfig关闭pages.friends时导航栏不显示友链
-	if (siteConfig.pages.friends) {
-		links.push(LinkPreset.Friends);
-	}
+	//社交及其子菜单
+	links.push({
+		name: "社交",
+		url: "#",
+		icon: "material-symbols:group",
+		children: [
+			// 友链
+			LinkPresets.Friends,
 
-	// 根据配置决定是否添加留言板，在siteConfig关闭pages.guestbook时导航栏不显示留言板
-	if (siteConfig.pages.guestbook) {
-		links.push(LinkPreset.Guestbook);
-	}
+			// 留言
+			LinkPresets.Guestbook,
+		],
+	});
 
 	// 我的及其子菜单
 	links.push({
 		name: "我的",
-		url: "/my/",
+		url: "#",
 		icon: "material-symbols:person",
 		children: [
-			// 根据配置决定是否添加相册，在siteConfig关闭pages.gallery时导航栏不显示相册
-			...(siteConfig.pages.gallery ? [LinkPreset.Gallery] : []),
+			// 动态
+			LinkPresets.Dynamic,
 
-			// 根据配置决定是否添加番组计划，在siteConfig关闭pages.bangumi时导航栏不显示番组计划
-			...(siteConfig.pages.bangumi ? [LinkPreset.Bangumi] : []),
+			// 相册
+			LinkPresets.Gallery,
+
+			// 追番
+			LinkPresets.Anime,
+
+			// 番组计划
+			LinkPresets.Bangumi,
 		],
 	});
 
 	// 关于及其子菜单
 	links.push({
 		name: "关于",
-		url: "/content/",
+		url: "#",
 		icon: "material-symbols:info",
 		children: [
-			// 根据配置决定是否添加赞助，在siteConfig关闭pages.sponsor时导航栏不显示赞助
-			...(siteConfig.pages.sponsor ? [LinkPreset.Sponsor] : []),
+			// 打赏
+			LinkPresets.Sponsor,
 
 			// 关于页面
-			LinkPreset.About,
+			LinkPresets.About,
 		],
 	});
 
-	// 自定义导航栏链接,并且支持多级菜单
+	// 自定义导航栏链接
 	links.push({
 		name: "链接",
-		url: "/links/",
+		url: "#",
 		icon: "material-symbols:link",
-
 		// 子菜单
 		children: [
 			{
@@ -94,16 +106,103 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 				external: true,
 				icon: "fa7-brands:qq",
 			},
+			{
+				name: "Firefly文档",
+				url: "https://docs-firefly.cuteleaf.cn",
+				external: true,
+				icon: "material-symbols:docs",
+			},
 		],
 	});
 
-	// 仅返回链接，其它导航搜索相关配置在模块顶层常量中独立导出
+	// 文档链接
+	// links.push({
+	// 	name: "文档",
+	// 	url: "https://docs-firefly.cuteleaf.cn",
+	// 	external: true,
+	// 	icon: "material-symbols:docs",
+	// });
+
 	return { links } as NavBarConfig;
 };
 
 // 导航搜索配置
 export const navBarSearchConfig: NavBarSearchConfig = {
 	method: NavBarSearchMethod.PageFind,
+};
+
+// ============================================================================
+// 链接预设 - 可自由自定义导航栏链接的名称、图标和URL
+// Link Presets - Allows free customization of the name, icon, and URL of navigation bar links
+// ============================================================================
+export const LinkPresets: Record<string, NavBarLink> = {
+	Home: {
+		name: "主页",
+		url: "/",
+		icon: "material-symbols:home",
+	},
+	Dynamic: {
+		name: "动态",
+		url: "/dynamic/",
+		icon: "material-symbols:forum-rounded",
+		pageKey: "dynamic",
+	},
+	Archive: {
+		name: "归档",
+		url: "/archive/",
+		icon: "material-symbols:archive",
+	},
+	Categories: {
+		name: "分类",
+		url: "/categories/",
+		icon: "material-symbols:folder-open-rounded",
+	},
+	Tags: {
+		name: "标签",
+		url: "/tags/",
+		icon: "material-symbols:tag-rounded",
+	},
+	Friends: {
+		name: "友链",
+		url: "/friends/",
+		icon: "material-symbols:link-2-rounded",
+		pageKey: "friends",
+	},
+	Sponsor: {
+		name: "打赏",
+		url: "/sponsor/",
+		icon: "material-symbols:favorite",
+		pageKey: "sponsor",
+	},
+	Guestbook: {
+		name: "留言",
+		url: "/guestbook/",
+		icon: "material-symbols:chat",
+		pageKey: "guestbook",
+	},
+	About: {
+		name: "关于我",
+		url: "/about/",
+		icon: "material-symbols:person",
+	},
+	Bangumi: {
+		name: "番组计划",
+		url: "/bangumi/",
+		icon: "material-symbols:movie",
+		pageKey: "bangumi",
+	},
+	Gallery: {
+		name: "相册",
+		url: "/gallery/",
+		icon: "material-symbols:photo-library",
+		pageKey: "gallery",
+	},
+	Anime: {
+		name: "追番",
+		url: "/anime/",
+		icon: "material-symbols:live-tv",
+		pageKey: "anime",
+	},
 };
 
 export const navBarConfig: NavBarConfig = getDynamicNavBarConfig();

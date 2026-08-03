@@ -3,9 +3,13 @@
 @import './navbar.css';
 @import './banner-title.css';
 @import './waves.css';
-@import './transition.css'; 
+@import './transition.css';
 @import './custom-scrollbar.css';
-
+@import './gallery.css';
+@import './anime-bangumi.css';
+@import './tags.css';
+@import './display-settings.css';
+@import './categories.css';
 
 @plugin '@tailwindcss/typography';
 
@@ -224,6 +228,9 @@ html {
     .enable-card-border .card-base-transparent {
         @apply transition-all duration-300 border border-(--line-divider) shadow-xs;
     }
+    .enable-card-border .btn-card {
+        @apply transition-all duration-300 border border-(--line-divider) shadow-xs;
+    }
 
     /* 导航栏样式适配 */
     .enable-card-border #navbar > div:not(.absolute) {
@@ -266,7 +273,11 @@ html {
     .wallpaper-transparent .btn-card {
         background-color: var(--card-bg-transparent) !important;
     }
-    
+
+    .wallpaper-transparent .bg-\(--card-bg\) {
+        background-color: var(--card-bg-transparent) !important;
+    }
+
     h1, h2, h3, h4, h5, h6, p, a, span, li, ul, ol, blockquote, code, pre, table, th, td, strong {
         @apply transition-colors duration-150;
     }
@@ -333,11 +344,11 @@ html {
 
     .hide-scrollbar {
         scrollbar-width: none;
-        -ms-overflow-style: none;
     }
     .hide-scrollbar::-webkit-scrollbar {
         display: none;
     }
+
 
     .text-90 {
         @apply text-black/90 dark:text-white/90
@@ -474,9 +485,9 @@ html {
   background-color: var(--_spoiler-mask);
   box-decoration-break: clone;
   &:not(:hover) {
-    color: var(--_spoiler-mask);
+   color: transparent;
     * {
-        color: var(--_spoiler-mask);
+       opacity: 0;
     }
   }
 }
@@ -576,3 +587,4 @@ html {
 .pagination-info {
   @apply text-sm text-(--text-secondary) text-center mb-2;
 }
+

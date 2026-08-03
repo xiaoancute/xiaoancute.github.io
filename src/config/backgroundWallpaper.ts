@@ -1,12 +1,10 @@
-import type { BackgroundWallpaperConfig } from "@/types/config";
+import type { BackgroundWallpaperConfig } from "@/types/backgroundWallpaper";
 
 export const backgroundWallpaper: BackgroundWallpaperConfig = {
 	// 壁纸模式："banner" 横幅壁纸，"fullscreen" 全屏壁纸，"overlay" 全屏透明，"none" 纯色背景无壁纸
 	mode: "banner",
-	// 是否允许用户通过导航栏切换壁纸模式
-	// 且同时维护多种壁纸模式过于复杂（已经屎山代码），在切换时有时候可能会出现一些奇怪的过渡效果或者bug
-	// 推荐只选择自己喜欢的模式并关闭切换功能
-	switchable: true,
+	// 是否启用背景视频播放，配置后将在导航栏显示视频播放按钮
+	playerEnable: true,
 	/**
 	 * 背景图片配置
 	 * 图片路径支持三种格式：
@@ -58,21 +56,28 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 			"assets/images/MobileWallpaper/m5.avif",
 			"assets/images/MobileWallpaper/m6.avif",
 		],
+		// 背景视频播放地址
+		// 支持单个视频路径（字符串）或多个视频循环（数组）
+		// 支持远程视频URL，本地视频请放在 public/assets/videos/ 目录下
+		// playerUrl: "/assets/videos/firefly.mp4",
+		playerUrl: [
+			"https://www.image2url.com/r2/default/videos/1781765166391-f2ba6648-1597-40e0-9f0a-6768ae39e574.mp4",
+		],
 	},
 	// 横幅壁纸和全屏壁纸共享配置
 	common: {
-		// 横幅文字遮罩暗度，0-1之间，值越大越暗
+		// 壁纸遮罩暗度，让横幅文字显示更清晰，0-1之间，值越大越暗
 		dimOpacity: 0.2,
+		// 多视频播放模式："order" 顺序循环，"random" 随机切换（仅当 playerUrl 为数组时生效）
+		playerMode: "random",
 		// 主页横幅文字
 		homeText: {
 			// 是否启用主页横幅文字
 			enable: true,
-			// 是否允许用户通过控制面板切换横幅标题显示
-			switchable: true,
 			// 主页横幅主标题
 			title: "Lovely firefly!",
 			// 主页横幅主标题字体大小
-			titleSize: "3.8rem",
+			titleSize: "4.5rem",
 			// 主页横幅副标题
 			subtitle: [
 				"In Reddened Chrysalis, I Once Rest",
@@ -97,6 +102,10 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 				pauseTime: 2000,
 			},
 		},
+		// 文章横幅信息："description" 显示描述，"meta" 显示日期、字数和阅读时长
+		postInfo: {
+			mode: "description",
+		},
 		// 导航栏配置
 		navbar: {
 			// 导航栏透明模式："semi" 半透明，"full" 完全透明，"semifull" 动态透明
@@ -114,8 +123,6 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 				// 移动端是否启用水波纹动画效果
 				mobile: true,
 			},
-			// 是否允许用户通过控制面板切换水波纹动画
-			switchable: true,
 		},
 		// 渐变过渡效果配置，当水波纹关闭时自动启用，提供壁纸底部到背景色的平滑过渡
 		gradient: {
@@ -126,9 +133,16 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 				mobile: true,
 			},
 			// 渐变高度
-			height: "15vh",
-			// 是否允许用户通过控制面板切换渐变过渡
-			switchable: true,
+			height: "10%",
+		},
+		// 壁纸轮播配置，横幅壁纸和全屏壁纸共享，仅在配置多张图片时生效
+		carousel: {
+			// 是否启用壁纸轮播；关闭时保持每次刷新随机显示一张
+			enable: false,
+			// 轮播切换间隔（毫秒）
+			interval: 5000,
+			// 过渡效果: 'fade' 渐变 | 'zoom' 缩放 | 'slide' 滑动 | 'kenburns' 旋转木马
+			transitionEffect: "zoom",
 		},
 	},
 	// Banner模式特有配置
@@ -137,24 +151,9 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		// 支持所有CSS object-position值，如: 'top', 'center', 'bottom', 'left top', 'right bottom', '25% 75%', '10px 20px'..
 		// 如果不知道怎么配置百分百之类的配置，推荐直接使用：'center'居中，'top'顶部居中，'bottom' 底部居中，'left'左侧居中，'right'右侧居中
 		position: "0% 20%",
-		// 横幅图片轮播配置，仅在当配置多张图片时生效
-		carousel: {
-			// 是否启用横幅图片轮播；关闭时保持每次刷新随机显示一张
-			enable: false,
-			// 轮播切换间隔（毫秒）
-			interval: 5000,
-			// 是否允许用户通过控制面板切换横幅轮播
-			switchable: false,
-		},
 	},
 	// 全屏透明覆盖模式特有配置
 	overlay: {
-		// 是否允许用户通过控制面板调整全屏透明模式参数
-		switchable: {
-			opacity: true,
-			blur: true,
-			cardOpacity: true,
-		},
 		// 层级，确保壁纸在背景层
 		zIndex: -1,
 		// 壁纸透明度
