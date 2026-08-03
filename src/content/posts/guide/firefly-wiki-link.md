@@ -5,6 +5,7 @@ description: 在 Firefly 文章中使用 Obsidian 风格的 Wiki Link 内部链�
 image: ""
 tags: [Markdown, Obsidian, Wiki-Link, 文章示例]
 category: 博客指南
+draft: true
 slug: guide/firefly-wiki-link
 ---
 
