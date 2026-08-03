@@ -12,6 +12,48 @@ const input = readline.createInterface({
 	output: process.stdout,
 });
 const answers = input[Symbol.asyncIterator]();
+const hasDialog =
+	process.stdin.isTTY &&
+	process.stdout.isTTY &&
+	spawnSync("dialog", ["--version"], { stdio: "ignore" }).status === 0;
+
+const colors = {
+	reset: "\x1b[0m",
+	bold: "\x1b[1m",
+	dim: "\x1b[2m",
+	cyan: "\x1b[36m",
+	green: "\x1b[32m",
+	yellow: "\x1b[33m",
+	red: "\x1b[31m",
+};
+
+function color(name, text) {
+	return process.stdout.isTTY ? `${colors[name]}${text}${colors.reset}` : text;
+}
+
+function dialog(args, { allowCancel = true } = {}) {
+	const result = spawnSync(
+		"dialog",
+		["--stdout", "--clear", "--backtitle", "Firefly 博客小助手", ...args],
+		{
+			cwd: repoRoot,
+			encoding: "utf8",
+			stdio: ["inherit", "pipe", "inherit"],
+		},
+	);
+	if (result.status === 0) return result.stdout.trim();
+	if (allowCancel && (result.status === 1 || result.status === 255))
+		return null;
+	throw new Error("终端界面启动失败");
+}
+
+function notice(title, message) {
+	if (hasDialog) {
+		dialog(["--title", title, "--msgbox", message, "9", "66"]);
+		return;
+	}
+	console.log(`\n${color("green", `✓ ${title}`)}\n${message}\n`);
+}
 
 function run(command, args, options = {}) {
 	const result = spawnSync(command, args, {
@@ -25,12 +67,15 @@ function run(command, args, options = {}) {
 	}
 }
 
-function capture(command, args) {
+function capture(command, args, { optional = false } = {}) {
 	const result = spawnSync(command, args, {
 		cwd: repoRoot,
 		encoding: "utf8",
 	});
-	if (result.error) throw result.error;
+	if (result.error) {
+		if (optional) return null;
+		throw result.error;
+	}
 	if (result.status !== 0) return "";
 	return result.stdout.trim();
 }
@@ -44,6 +89,27 @@ function getPostFiles(directory = postsDir) {
 			return /\.(md|mdx)$/i.test(entry.name) ? [fullPath] : [];
 		})
 		.sort((a, b) => a.localeCompare(b, "zh-CN"));
+}
+
+function getPosts() {
+	return getPostFiles().map((filePath) => {
+		const { parsed } = readPost(filePath);
+		return {
+			filePath,
+			title: parsed.data.title || path.basename(filePath),
+			draft: parsed.data.draft === true,
+		};
+	});
+}
+
+function getDashboardSummary() {
+	const posts = getPosts();
+	const drafts = posts.filter((post) => post.draft).length;
+	const published = posts.length - drafts;
+	const status = capture("git", ["status", "--short"], { optional: true });
+	const changes =
+		status === null ? null : status.split("\n").filter(Boolean).length;
+	return { drafts, published, changes };
 }
 
 function readPost(filePath) {
@@ -69,6 +135,17 @@ function writePost(filePath, parsed) {
 }
 
 async function ask(question, defaultValue = "") {
+	if (hasDialog) {
+		return dialog([
+			"--title",
+			question,
+			"--inputbox",
+			question,
+			"9",
+			"66",
+			defaultValue,
+		]);
+	}
 	const suffix = defaultValue ? `（默认：${defaultValue}）` : "";
 	process.stdout.write(`${question}${suffix}: `);
 	const { value = "" } = await answers.next();
@@ -77,6 +154,12 @@ async function ask(question, defaultValue = "") {
 }
 
 async function confirm(question, defaultYes = false) {
+	if (hasDialog) {
+		const args = ["--title", "请确认"];
+		if (!defaultYes) args.push("--defaultno");
+		const result = dialog([...args, "--yesno", question, "9", "66"]);
+		return result !== null;
+	}
 	const hint = defaultYes ? "Y/n" : "y/N";
 	process.stdout.write(`${question} [${hint}] `);
 	const { value = "" } = await answers.next();
@@ -87,21 +170,79 @@ async function confirm(question, defaultYes = false) {
 
 async function createPost() {
 	const title = await ask("文章标题");
-	if (!title) {
+	if (title === null || !title) {
 		console.log("已取消：标题不能为空。");
 		return;
 	}
 
-	const fileName = await ask("文件名或目录名", title);
+	let fileName;
+	let description;
+	let category;
+	let tags;
+	if (hasDialog) {
+		const result = dialog([
+			"--title",
+			"文章信息",
+			"--form",
+			"补充文章信息，之后仍可在 Markdown 中修改",
+			"18",
+			"78",
+			"5",
+			"文件名",
+			"1",
+			"1",
+			title,
+			"1",
+			"18",
+			"50",
+			"0",
+			"一句话简介",
+			"2",
+			"1",
+			"",
+			"2",
+			"18",
+			"50",
+			"0",
+			"分类",
+			"3",
+			"1",
+			"",
+			"3",
+			"18",
+			"50",
+			"0",
+			"标签（逗号分隔）",
+			"4",
+			"1",
+			"",
+			"4",
+			"18",
+			"50",
+			"0",
+		]);
+		if (result === null) return;
+		[fileName = title, description = "", category = "", tags = ""] =
+			result.split("\n");
+	} else {
+		fileName = await ask("文件名或目录名", title);
+		if (fileName === null) return;
+		description = await ask("一句话简介（可留空）");
+		category = await ask("分类（可留空）");
+		tags = await ask("标签，多个用逗号分隔（可留空）");
+	}
+	fileName = fileName.trim();
+	if (!fileName) throw new Error("文件名不能为空");
+
 	const filePath = resolvePostPath(fileName);
 	run("node", ["scripts/new-post.js", fileName]);
 
 	try {
 		const { parsed } = readPost(filePath);
 		parsed.data.title = title;
-		parsed.data.description = await ask("一句话简介（可留空）");
-		parsed.data.category = await ask("分类（可留空）");
-		const tags = await ask("标签，多个用逗号分隔（可留空）");
+		parsed.data.description = description ?? "";
+		parsed.data.category = category ?? "";
+		tags ??= "";
 		parsed.data.tags = tags
 			? tags
 					.split(/[,，]/)
@@ -115,19 +256,67 @@ async function createPost() {
 		throw error;
 	}
 
-	console.log(`\n草稿已创建：${relativePostPath(filePath)}`);
-	console.log("草稿会在本地预览中显示，但不会出现在正式网站。\n");
+	notice(
+		"草稿已创建",
+		`${relativePostPath(filePath)}\n\n本地预览可见，正式网站不会显示。`,
+	);
 }
 
 async function choosePost() {
-	const posts = getPostFiles().map((filePath) => {
-		const { parsed } = readPost(filePath);
-		return {
-			filePath,
-			title: parsed.data.title || path.basename(filePath),
-			draft: parsed.data.draft === true,
-		};
-	});
+	let posts = getPosts();
+
+	if (hasDialog) {
+		const filter = dialog([
+			"--title",
+			"筛选文章",
+			"--no-tags",
+			"--menu",
+			"先选择要查看的文章状态",
+			"14",
+			"58",
+			"5",
+			"all",
+			`全部文章（${posts.length}）`,
+			"draft",
+			`仅草稿（${posts.filter((post) => post.draft).length}）`,
+			"published",
+			`仅公开（${posts.filter((post) => !post.draft).length}）`,
+			"search",
+			"按标题搜索",
+		]);
+		if (filter === null) return null;
+		if (filter === "draft") posts = posts.filter((post) => post.draft);
+		if (filter === "published") posts = posts.filter((post) => !post.draft);
+		if (filter === "search") {
+			const keyword = await ask("搜索文章标题");
+			if (!keyword) return null;
+			posts = posts.filter((post) =>
+				post.title
+					.toLocaleLowerCase("zh-CN")
+					.includes(keyword.toLocaleLowerCase("zh-CN")),
+			);
+			if (posts.length === 0) {
+				notice("没有找到文章", `没有标题包含“${keyword}”的文章。`);
+				return null;
+			}
+		}
+
+		const choice = dialog([
+			"--title",
+			"选择文章",
+			"--no-tags",
+			"--menu",
+			"↑↓ 选择，Enter 确认，Esc 返回",
+			"22",
+			"82",
+			"14",
+			...posts.flatMap((post, index) => [
+				String(index),
+				`${post.draft ? "[草稿]" : "[公开]"} ${post.title}`,
+			]),
+		]);
+		return choice === null ? null : posts[Number.parseInt(choice, 10)];
+	}
 
 	for (const [index, post] of posts.entries()) {
 		const state = post.draft ? "草稿" : "公开";
@@ -158,7 +347,7 @@ async function changeVisibility() {
 		parsed.data.updated = new Date().toISOString().slice(0, 10);
 	}
 	writePost(post.filePath, parsed);
-	console.log(`已${action}：${relativePostPath(post.filePath)}\n`);
+	notice(`已${action}`, relativePostPath(post.filePath));
 }
 
 function preview() {
@@ -168,53 +357,114 @@ function preview() {
 }
 
 function validate() {
+	console.log(`\n${color("bold", "正在执行完整检查")}`);
+	console.log(color("dim", "Biome → Astro → TypeScript → Production build\n"));
 	run("pnpm", ["exec", "biome", "ci", "./src"]);
 	run("pnpm", ["check"]);
 	run("pnpm", ["type-check"]);
 	run("pnpm", ["build"]);
-	console.log("\n全部检查通过。\n");
+	notice("全部检查通过", "代码质量、类型检查和生产构建均已完成。 ");
 }
 
 async function publish() {
 	const status = capture("git", ["status", "--short"]);
 	if (!status) {
-		console.log("没有需要发布的改动。\n");
+		notice("无需发布", "当前工作区没有改动。");
 		return;
 	}
 
-	console.log("\n准备发布以下改动：\n");
-	console.log(status);
-	console.log("");
+	if (hasDialog) {
+		dialog([
+			"--title",
+			"准备发布",
+			"--scrollbar",
+			"--msgbox",
+			`即将提交以下改动：\n\n${status}`,
+			"18",
+			"82",
+		]);
+	} else {
+		console.log(`\n${color("yellow", "准备发布以下改动：")}\n`);
+		console.log(status);
+		console.log("");
+	}
 	if (!(await confirm("这些改动都要一起发布吗？"))) return;
 
 	validate();
 	const message = await ask("提交说明", "content: update blog");
+	if (message === null) return;
 	run("git", ["add", "--all"]);
 	run("git", ["commit", "-m", message]);
 	const branch = capture("git", ["branch", "--show-current"]);
 	if (!branch) throw new Error("无法确定当前 Git 分支");
 	run("git", ["push", "origin", branch]);
-	console.log("\n发布完成，GitHub Actions 会自动构建并部署博客。\n");
+	notice("发布完成", "代码已推送，GitHub Actions 会自动构建并部署博客。");
+}
+
+async function chooseMainAction() {
+	const summary = getDashboardSummary();
+	const changeSummary =
+		summary.changes === null
+			? "改动状态不可用"
+			: `${summary.changes} 个未提交文件`;
+	const dashboard = `${summary.published} 篇公开  ·  ${summary.drafts} 篇草稿  ·  ${changeSummary}`;
+	if (hasDialog) {
+		return dialog([
+			"--title",
+			"写作工作台",
+			"--no-tags",
+			"--menu",
+			`${dashboard}\n\n无需记命令，选择接下来要做的事`,
+			"18",
+			"70",
+			"8",
+			"new",
+			"写一篇新草稿",
+			"visibility",
+			"公开或隐藏文章",
+			"preview",
+			"启动本地预览",
+			"validate",
+			"运行完整检查",
+			"publish",
+			"检查、提交并发布",
+			"exit",
+			"退出",
+		]);
+	}
+
+	console.log(`\n${color("cyan", "╭────────────────────────╮")}`);
+	console.log(color("cyan", "│     Firefly 写作台     │"));
+	console.log(color("cyan", "╰────────────────────────╯"));
+	console.log(color("dim", dashboard));
+	console.log("1. 写一篇新草稿");
+	console.log("2. 公开或隐藏文章");
+	console.log("3. 本地预览");
+	console.log("4. 完整检查");
+	console.log("5. 提交并发布");
+	console.log("0. 退出");
+	const choice = await ask("请选择");
+	return {
+		1: "new",
+		2: "visibility",
+		3: "preview",
+		4: "validate",
+		5: "publish",
+		0: "exit",
+	}[choice];
 }
 
 async function menu() {
 	while (true) {
-		console.log("\n=== 博客小助手 ===");
-		console.log("1. 写一篇新草稿");
-		console.log("2. 公开或隐藏文章");
-		console.log("3. 本地预览");
-		console.log("4. 完整检查");
-		console.log("5. 提交并发布");
-		console.log("0. 退出");
-		const choice = await ask("请选择");
+		const choice = await chooseMainAction();
 
 		try {
-			if (choice === "1") await createPost();
-			else if (choice === "2") await changeVisibility();
-			else if (choice === "3") preview();
-			else if (choice === "4") validate();
-			else if (choice === "5") await publish();
-			else if (choice === "0") return;
+			if (choice === "new") await createPost();
+			else if (choice === "visibility") await changeVisibility();
+			else if (choice === "preview") preview();
+			else if (choice === "validate") validate();
+			else if (choice === "publish") await publish();
+			else if (choice === "exit" || choice == null) return;
 			else console.log("请输入 0 到 5。\n");
 		} catch (error) {
 			console.error(`\n操作失败：${error.message}\n`);
