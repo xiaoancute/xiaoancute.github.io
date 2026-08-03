@@ -35,9 +35,9 @@ const isDynamic = $derived(!!fetchConfig);
 // 状态
 let activeTabOverride = $state<string | null>(null);
 let dynamicLoaded = $state(false);
+let error = $state(false);
 const activeTab = $derived(activeTabOverride ?? initialActiveTab ?? "");
 const loading = $derived(isDynamic && !dynamicLoaded && !error);
-let error = $state(false);
 let errorTitle = $state("");
 let errorDesc = $state("");
 let updateTimestamp = $state("");
