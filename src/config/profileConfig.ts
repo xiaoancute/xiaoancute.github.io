@@ -12,7 +12,7 @@ export const profileConfig: ProfileConfig = {
 	name: "Xiaoan",
 
 	// 个人签名
-	bio: "Hello, I'm Xiaoan.",
+	bio: "天若有情天亦老，人间正道是沧桑。",
 
 	// 链接配置
 	// 已经预装的图标集：fa7-brands，fa7-regular，fa7-solid，material-symbols，simple-icons
@@ -22,15 +22,9 @@ export const profileConfig: ProfileConfig = {
 	// showName: true 时显示图标和名称，false 时只显示图标
 	links: [
 		{
-			name: "Bilibili",
-			icon: "fa7-brands:bilibili",
-			url: "https://space.bilibili.com/",
-			showName: false,
-		},
-		{
 			name: "GitHub",
 			icon: "fa7-brands:github",
-			url: "https://github.com/",
+			url: "https://github.com/xiaoancute",
 			showName: false,
 		},
 	],
