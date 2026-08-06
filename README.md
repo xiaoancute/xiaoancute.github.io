@@ -273,8 +273,6 @@ location: China # 位置
 不想记命令时，在项目根目录运行：
 
 ```bash
-./blog.sh
-# 或直接
 pnpm blog
 ```
 
