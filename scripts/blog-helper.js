@@ -7,7 +7,10 @@ import matter from "gray-matter";
 
 const repoRoot = process.cwd();
 const postsDir = path.join(repoRoot, "src/content/posts");
+const dynamicDir = path.join(repoRoot, "src/content/dynamic");
 const publicDir = path.join(repoRoot, "public");
+// 隔离区：删掉的文移到这里，不参与构建（对齐 quarantine-bad-posts.mjs），可随时手动恢复。
+const quarantineDir = path.join(repoRoot, "src/content/_quarantine");
 const dialogConfigPath = path.join(repoRoot, "scripts/blog-helper.dialogrc");
 const input = readline.createInterface({
 	input: process.stdin,
@@ -102,6 +105,36 @@ function getPosts() {
 	});
 }
 
+function getDynamics() {
+	if (!fs.existsSync(dynamicDir)) return [];
+	return fs
+		.readdirSync(dynamicDir, { withFileTypes: true })
+		.filter((entry) => entry.isFile() && /\.md$/i.test(entry.name))
+		.map((entry) => {
+			const filePath = path.join(dynamicDir, entry.name);
+			const { source, parsed } = readPost(filePath);
+			const content = parsed.content.trim();
+			// 微语正文可能多行，菜单里只显示首行预览
+			const preview = content.split("\n")[0] || "（空）";
+			return {
+				filePath,
+				source,
+				parsed,
+				content,
+				preview,
+				published: parsed.data.published,
+				pinned: parsed.data.pinned === true,
+				location: parsed.data.location || "",
+			};
+		})
+		.sort((a, b) => {
+			// published 是 Date，倒序（最新在前）
+			const ta = a.published instanceof Date ? a.published.getTime() : 0;
+			const tb = b.published instanceof Date ? b.published.getTime() : 0;
+			return tb - ta;
+		});
+}
+
 function getDashboardSummary() {
 	const posts = getPosts();
 	const drafts = posts.filter((post) => post.draft).length;
@@ -141,6 +174,22 @@ function writePost(filePath, parsed) {
 	const data = { ...parsed.data };
 	if (data.published) data.published = toDateString(data.published);
 	if (data.updated) data.updated = toDateString(data.updated);
+	fs.writeFileSync(filePath, matter.stringify(parsed.content, data));
+}
+
+// 微语的 published 是 YYYY-MM-DD HH:MM:SS 格式，与文章的纯日期不同，
+// 必须自己格式化回带时分秒的字符串，否则 gray-matter 会把它序列化成 ISO8601。
+function toDateTimeString(value) {
+	if (!(value instanceof Date)) return value;
+	const pad = (n) => String(n).padStart(2, "0");
+	return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(
+		value.getDate(),
+	)} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+}
+
+function writeDynamic(filePath, parsed) {
+	const data = { ...parsed.data };
+	if (data.published) data.published = toDateTimeString(data.published);
 	fs.writeFileSync(filePath, matter.stringify(parsed.content, data));
 }
 
@@ -270,6 +319,47 @@ async function chooseCoverImage(currentValue) {
 	if (choice === "api") return "api";
 	if (choice === "manual") return await ask("图片路径或网址");
 	return images[Number.parseInt(choice, 10)] ?? currentValue;
+}
+
+// 选语言：候选来自 src/i18n/languages/ 的实际语言文件。回车=保留当前。
+// 返回 null=取消（保留原样）；""=清除（用站点默认）；否则为语言 code。
+async function chooseLang(currentValue) {
+	const langDir = path.join(repoRoot, "src/i18n/languages");
+	const display = currentValue
+		? `保留当前（${currentValue}）`
+		: "留空（用站点默认）";
+	const options = [
+		{ key: "keep", label: display },
+		{ key: "custom", label: "手动输入语言 code" },
+	];
+	if (fs.existsSync(langDir)) {
+		const langs = fs
+			.readdirSync(langDir)
+			.filter((f) => /\.ts$/i.test(f))
+			.map((f) => f.replace(/\.ts$/i, ""))
+			.sort((a, b) => a.localeCompare(b, "zh-CN"));
+		for (const lang of langs) {
+			const mark = lang === currentValue ? " ✓" : "";
+			options.push({ key: `lang:${lang}`, label: `${lang}${mark}` });
+		}
+	} else {
+		// 没有语言文件就给几个常见值兜底
+		options.push(
+			{ key: "lang:zh_CN", label: "zh_CN（简中）" },
+			{ key: "lang:zh_TW", label: "zh_TW（繁中）" },
+			{ key: "lang:en", label: "en（英语）" },
+			{ key: "lang:ja", label: "ja（日语）" },
+			{ key: "lang:ko", label: "ko（韩语）" },
+			{ key: "lang:ru", label: "ru（俄语）" },
+		);
+	}
+	const choice = await selectOption("语言", options);
+	if (choice === null || choice === "keep") return null;
+	if (choice === "custom") {
+		const v = await ask("语言 code（如 zh_CN、en）", currentValue);
+		return v === null ? null : v.trim();
+	}
+	return choice.slice("lang:".length);
 }
 
 async function createPost() {
@@ -455,6 +545,152 @@ async function changeVisibility() {
 	notice(`已${action}`, relativePostPath(post.filePath));
 }
 
+// 删除文章：移到 src/content/_quarantine/ 而非真删，构建不会带上，需要时手动恢复即可。
+async function deletePost() {
+	const post = await choosePost();
+	if (!post) return;
+	if (!(await confirm(`确认删除《${post.title}》？`))) return;
+	// 再确认一次：删除不可逆（虽然文件进了隔离区，但菜单流程里视为删除）
+	if (
+		!(await confirm(
+			"文件会移到 src/content/_quarantine/，不进构建，可手动恢复。仍要继续？",
+		))
+	)
+		return;
+
+	const relative = relativePostPath(post.filePath);
+	const target = path.join(
+		quarantineDir,
+		path.relative(postsDir, post.filePath),
+	);
+	fs.mkdirSync(path.dirname(target), { recursive: true });
+	fs.renameSync(post.filePath, target);
+
+	// 原文章目录若已空（只剩被删的那个 index.md），顺手清掉空目录，不留垃圾
+	const originalDir = path.dirname(post.filePath);
+	const postsRoot = postsDir;
+	const removeEmptyDirs = (dir) => {
+		if (dir === postsRoot || !dir.startsWith(`${postsRoot}${path.sep}`)) return;
+		const entries = fs.readdirSync(dir, { withFileTypes: true });
+		if (entries.length === 0) {
+			fs.rmdirSync(dir);
+			removeEmptyDirs(path.dirname(dir));
+		}
+	};
+	removeEmptyDirs(originalDir);
+
+	notice(
+		"已删除",
+		`${relative}\n\n文件已移到 src/content/_quarantine/，可手动恢复。`,
+	);
+}
+
+// 选择一条微语用于编辑/删除。微语按时间倒序（最新在前），最近 N 条进菜单。
+async function chooseDynamic() {
+	const dynamics = getDynamics();
+	if (dynamics.length === 0) {
+		notice("没有微语", "src/content/dynamic/ 下还没有任何微语。");
+		return null;
+	}
+	const recent = dynamics.slice(0, 30);
+	const options = recent.map((dyn, index) => {
+		const stamp =
+			dyn.published instanceof Date
+				? toDateTimeString(dyn.published)
+				: String(dyn.published ?? "");
+		const pin = dyn.pinned ? "📌" : "  ";
+		const loc = dyn.location ? ` @${dyn.location}` : "";
+		// 菜单项截断，太长看不全
+		const prev =
+			dyn.preview.length > 32 ? `${dyn.preview.slice(0, 30)}…` : dyn.preview;
+		return { key: String(index), label: `${pin} ${stamp}${loc}  ${prev}` };
+	});
+	if (dynamics.length > recent.length) {
+		options.push({
+			key: "search",
+			label: `…（共 ${dynamics.length} 条，搜索更早的）`,
+		});
+	}
+	const choice = await selectOption("管理微语（选一条）", options);
+	if (choice === null) return null;
+	if (choice === "search") {
+		const keyword = await ask("输入关键词搜正文");
+		if (!keyword) return null;
+		const matched = dynamics.filter((dyn) =>
+			dyn.content
+				.toLocaleLowerCase("zh-CN")
+				.includes(keyword.toLocaleLowerCase("zh-CN")),
+		);
+		if (matched.length === 0) {
+			notice("没找到", `没有正文包含“${keyword}”的微语。`);
+			return null;
+		}
+		const mOptions = matched.map((dyn, index) => {
+			const stamp =
+				dyn.published instanceof Date
+					? toDateTimeString(dyn.published)
+					: String(dyn.published ?? "");
+			const pin = dyn.pinned ? "📌" : "  ";
+			const prev =
+				dyn.preview.length > 36 ? `${dyn.preview.slice(0, 34)}…` : dyn.preview;
+			return { key: String(index), label: `${pin} ${stamp}  ${prev}` };
+		});
+		const mChoice = await selectOption(`搜到 ${matched.length} 条`, mOptions);
+		return mChoice === null ? null : matched[Number.parseInt(mChoice, 10)];
+	}
+	return recent[Number.parseInt(choice, 10)];
+}
+
+async function manageDynamic() {
+	const dyn = await chooseDynamic();
+	if (!dyn) return;
+
+	const action = await selectOption(`微语：${dyn.preview.slice(0, 40)}`, [
+		{ key: "content", label: "编辑正文" },
+		{ key: "pinned", label: dyn.pinned ? "取消置顶" : "置顶" },
+		{ key: "location", label: `位置（当前：${dyn.location || "无"}）` },
+		{ key: "delete", label: "删除这条微语" },
+	]);
+	if (action === null) return;
+
+	if (action === "delete") {
+		if (!(await confirm(`确认删除这条微语？\n${dyn.preview.slice(0, 50)}`)))
+			return;
+		fs.rmSync(dyn.filePath);
+		notice("已删除", relativePostPath(dyn.filePath));
+		return;
+	}
+
+	const { parsed } = readPost(dyn.filePath);
+
+	if (action === "content") {
+		const next = await editField("正文（Markdown）", dyn.content);
+		if (next === null) return;
+		if (!next.trim()) {
+			console.log("正文不能为空，已保持原样。");
+			return;
+		}
+		// editField 返回单行；微语本就是短文本，保留单行编辑即可
+		parsed.content = `\n${next}\n`;
+	}
+
+	if (action === "pinned") {
+		const nextPinned = !dyn.pinned;
+		if (nextPinned) parsed.data.pinned = true;
+		else delete parsed.data.pinned;
+	}
+
+	if (action === "location") {
+		const nextLoc = await editField("位置（留空则清除）", dyn.location);
+		if (nextLoc === null) return;
+		if (nextLoc.trim()) parsed.data.location = nextLoc.trim();
+		else delete parsed.data.location;
+	}
+
+	writeDynamic(dyn.filePath, parsed);
+	notice("已更新", relativePostPath(dyn.filePath));
+}
+
 async function createDynamic() {
 	const content = await ask("写一条动态（支持 Markdown）");
 	if (content === null) return;
@@ -507,6 +743,20 @@ async function editPostInfo() {
 		d.slug ?? "",
 	);
 
+	// 语言：用于 <html lang> 和 SEO。候选来自实际启用的 i18n 语言文件。
+	const lang = await chooseLang(d.lang ?? "");
+
+	// 加密：留空=公开文章；填密码=构建时 AES-256-GCM 加密，访客需输入密码解密。
+	const password = await editField(
+		"密码（留空则公开，填了则加密）",
+		d.password ?? "",
+	);
+	let passwordHint = d.passwordHint ?? "";
+	if (password !== null && password) {
+		const hint = await editField("密码提示（访客可见）", d.passwordHint ?? "");
+		passwordHint = hint ?? "";
+	}
+
 	parsed.data.title = title;
 	parsed.data.description = description;
 	parsed.data.category = category || "";
@@ -516,6 +766,24 @@ async function editPostInfo() {
 	else delete parsed.data.pinned;
 	if (slug) parsed.data.slug = slug;
 	else delete parsed.data.slug;
+
+	if (lang === null) {
+		// 用户取消，保留原样
+	} else if (lang === "") {
+		delete parsed.data.lang;
+	} else {
+		parsed.data.lang = lang;
+	}
+
+	if (password === null) {
+		// 用户取消，保留原样
+	} else if (password === "") {
+		delete parsed.data.password;
+		delete parsed.data.passwordHint;
+	} else {
+		parsed.data.password = password;
+		parsed.data.passwordHint = passwordHint;
+	}
 
 	writePost(post.filePath, parsed);
 	notice("已更新", relativePostPath(post.filePath));
@@ -608,8 +876,10 @@ async function chooseMainAction() {
 	const MAIN_ACTIONS = [
 		{ key: "new", label: "写一篇新草稿" },
 		{ key: "dynamic", label: "写一条动态/微语" },
+		{ key: "manage-dynamic", label: "管理微语（编辑/删除/置顶/位置）" },
 		{ key: "edit", label: "编辑文章信息" },
 		{ key: "visibility", label: "公开或隐藏文章" },
+		{ key: "delete", label: "删除文章（移入隔离区）" },
 		{ key: "preview", label: "启动本地预览" },
 		{ key: "validate", label: "运行完整检查" },
 		{ key: "publish", label: "提交并发布" },
@@ -654,14 +924,16 @@ async function menu() {
 		try {
 			if (choice === "new") await createPost();
 			else if (choice === "dynamic") await createDynamic();
+			else if (choice === "manage-dynamic") await manageDynamic();
 			else if (choice === "edit") await editPostInfo();
 			else if (choice === "visibility") await changeVisibility();
+			else if (choice === "delete") await deletePost();
 			else if (choice === "preview") preview();
 			else if (choice === "validate") validate();
 			else if (choice === "publish") await publish();
 			else if (choice === "sync") await quickSync();
 			else if (choice === "exit" || choice == null) return;
-			else console.log("请输入 0 到 8。\n");
+			else console.log("请输入 0 到 10。\n");
 		} catch (error) {
 			console.error(`\n操作失败：${error.message}\n`);
 		}
