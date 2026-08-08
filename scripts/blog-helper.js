@@ -170,11 +170,22 @@ function toDateString(value) {
 	return value instanceof Date ? value.toISOString().slice(0, 10) : value;
 }
 
+// gray-matter（js-yaml）会把形如 2026-08-08 的纯字符串自动加上引号，防止被反解成时间戳；
+// 而站点 schema 要求 published/updated 是日期类型，带引号会让 Astro 构建报
+// "Expected type 'date', received 'string'"。序列化后把这些日期字段的引号剥掉。
+function stringifyFrontmatter(content, data) {
+	const output = matter.stringify(content, data);
+	return output.replace(
+		/^(\s*(?:published|updated):\s*)'(\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}:\d{2})?)'\s*$/gm,
+		"$1$2",
+	);
+}
+
 function writePost(filePath, parsed) {
 	const data = { ...parsed.data };
 	if (data.published) data.published = toDateString(data.published);
 	if (data.updated) data.updated = toDateString(data.updated);
-	fs.writeFileSync(filePath, matter.stringify(parsed.content, data));
+	fs.writeFileSync(filePath, stringifyFrontmatter(parsed.content, data));
 }
 
 // 微语的 published 是 YYYY-MM-DD HH:MM:SS 格式，与文章的纯日期不同，
@@ -190,7 +201,7 @@ function toDateTimeString(value) {
 function writeDynamic(filePath, parsed) {
 	const data = { ...parsed.data };
 	if (data.published) data.published = toDateTimeString(data.published);
-	fs.writeFileSync(filePath, matter.stringify(parsed.content, data));
+	fs.writeFileSync(filePath, stringifyFrontmatter(parsed.content, data));
 }
 
 // 列出 public 目录下常见图片，供“封面图”快捷选用

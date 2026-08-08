@@ -1,6 +1,6 @@
 ---
 title: 谈谈如何用AI学习
-published: '2026-08-08'
+published: 2026-08-08
 description: 一些想法
 image: ''
 tags:
