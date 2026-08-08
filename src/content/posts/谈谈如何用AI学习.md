@@ -8,7 +8,7 @@ tags:
   - AI
   - 学习
 category: 笔记
-draft: true
+draft: false
 lang: ''
 slug: tan-tan-ru-he-yong-ai-xue-xi
 ---
