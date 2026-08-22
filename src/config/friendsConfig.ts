@@ -24,8 +24,7 @@ export const friendsPageConfig: FriendsPageConfig = {
 export const friendsConfig: FriendLink[] = [
 	{
 		title: "Linuxdo",
-		imgurl:
-			"https://a.favicon.im/linux.do",
+		imgurl: "https://a.favicon.im/linux.do",
 		desc: "真诚、友善、团结、专业。",
 		siteurl: "https://Linux.do",
 		tags: ["Chinese forum"],
