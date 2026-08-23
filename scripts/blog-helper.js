@@ -816,6 +816,27 @@ function validate() {
 	notice("全部检查通过", "代码质量、类型检查和生产构建均已完成。 ");
 }
 
+// 推送前先同步远程：远程有新提交时用 rebase 搬到其上，避免 push 被 non-fast-forward 拒绝。
+function syncAndPush(branch) {
+	capture("git", ["fetch", "origin"], { optional: true });
+	const upstream = `origin/${branch}`;
+	const behind = capture(
+		"git",
+		["rev-list", "--count", `HEAD..${upstream}`],
+		{ optional: true },
+	);
+	if (Number.parseInt(behind ?? "0", 10) > 0) {
+		console.log(`远程有 ${behind} 个新提交，正在变基合并…`);
+		try {
+			run("git", ["rebase", upstream]);
+		} catch {
+			run("git", ["rebase", "--abort"]);
+			throw new Error("与远程改动冲突，已取消合并（本地提交完好），请手动处理后再发布");
+		}
+	}
+	run("git", ["push", "origin", branch]);
+}
+
 async function publish() {
 	const status = capture("git", ["status", "--short"]);
 	if (!status) {
@@ -852,7 +873,7 @@ async function publish() {
 	run("git", ["commit", "-m", message]);
 	const branch = capture("git", ["branch", "--show-current"]);
 	if (!branch) throw new Error("无法确定当前 Git 分支");
-	run("git", ["push", "origin", branch]);
+	syncAndPush(branch);
 	notice("发布完成", "代码已推送，GitHub Actions 会自动构建并部署博客。");
 }
 
@@ -873,7 +894,7 @@ async function quickSync() {
 	run("git", ["commit", "-m", message]);
 	const branch = capture("git", ["branch", "--show-current"]);
 	if (!branch) throw new Error("无法确定当前 Git 分支");
-	run("git", ["push", "origin", branch]);
+	syncAndPush(branch);
 	notice("已同步", "代码已推送，GitHub Actions 会自动构建并部署博客。");
 }
 
