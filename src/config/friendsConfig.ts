@@ -29,7 +29,7 @@ export const friendsConfig: FriendLink[] = [
 		siteurl: "https://Linux.do",
 		tags: ["Chinese forum"],
 		weight: 10,
-		enabled: true,
+		enabled: false,
 	},
 	{
 		title: "夏夜流萤",
