@@ -3,7 +3,6 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import readline from "node:readline/promises";
-import matter from "gray-matter";
 
 const repoRoot = process.cwd();
 const postsDir = path.join(repoRoot, "src/content/posts");
@@ -12,6 +11,17 @@ const publicDir = path.join(repoRoot, "public");
 // 隔离区：删掉的文移到这里，不参与构建（对齐 quarantine-bad-posts.mjs），可随时手动恢复。
 const quarantineDir = path.join(repoRoot, "src/content/_quarantine");
 const dialogConfigPath = path.join(repoRoot, "scripts/blog-helper.dialogrc");
+let matter;
+
+// pnpm 会把当前入口写入 npm_execpath。复用它可以避免 Termux 上多个 pnpm 安装互相串台。
+const pnpmInvocation = (() => {
+	const execPath = process.env.npm_execpath;
+	if (execPath && /(?:^|[/\\])pnpm(?:\.c?js|\.mjs)?$/i.test(execPath)) {
+		return { command: process.execPath, args: [execPath] };
+	}
+	return { command: "pnpm", args: [] };
+})();
+
 const input = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
@@ -68,6 +78,33 @@ function run(command, args, options = {}) {
 	if (result.status !== 0) {
 		throw new Error(`${command} ${args.join(" ")} 执行失败`);
 	}
+}
+
+function runPnpm(args, options = {}) {
+	run(pnpmInvocation.command, [...pnpmInvocation.args, ...args], options);
+}
+
+function installDependencies() {
+	console.log("首次使用，正在自动安装博客依赖，请稍候……\n");
+	try {
+		// 锁文件没问题时不改它；只有锁文件确实需要更新时才放宽限制。
+		runPnpm(["install", "--frozen-lockfile"]);
+	} catch {
+		console.log("锁文件需要更新，正在重新安装依赖……\n");
+		runPnpm(["install", "--no-frozen-lockfile"]);
+	}
+}
+
+async function loadMatter() {
+	try {
+		matter = (await import("gray-matter")).default;
+		return;
+	} catch (error) {
+		if (error?.code !== "ERR_MODULE_NOT_FOUND") throw error;
+	}
+
+	installDependencies();
+	matter = (await import("gray-matter")).default;
 }
 
 function capture(command, args, { optional = false } = {}) {
@@ -803,16 +840,16 @@ async function editPostInfo() {
 function preview() {
 	console.log("正在启动预览，浏览器地址：http://localhost:4321");
 	console.log("按 Ctrl+C 可以停止。\n");
-	run("pnpm", ["dev"], { stdio: "inherit" });
+	runPnpm(["dev"], { stdio: "inherit" });
 }
 
 function validate() {
 	console.log("\n正在执行完整检查");
 	console.log("Biome -> Astro -> TypeScript -> Production build\n");
-	run("pnpm", ["exec", "biome", "ci", "./src"]);
-	run("pnpm", ["check"]);
-	run("pnpm", ["type-check"]);
-	run("pnpm", ["build"]);
+	runPnpm(["exec", "biome", "ci", "./src"]);
+	runPnpm(["check"]);
+	runPnpm(["type-check"]);
+	runPnpm(["build"]);
 	notice("全部检查通过", "代码质量、类型检查和生产构建均已完成。 ");
 }
 
@@ -973,7 +1010,11 @@ async function menu() {
 }
 
 try {
+	await loadMatter();
 	await menu();
+} catch (error) {
+	console.error(`\n启动失败：${error.message}\n`);
+	process.exitCode = 1;
 } finally {
 	input.close();
 }

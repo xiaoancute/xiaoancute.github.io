@@ -3,3 +3,6 @@ packages:
 allowBuilds:
   esbuild: true
   workerd: false
+
+# Termux 常见的 pnpm 小版本差异不应阻止博客助手启动。
+pmOnFail: ignore
