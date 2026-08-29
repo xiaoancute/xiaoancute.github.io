@@ -2,7 +2,22 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { siteConfig } from "../src/config/siteConfig.ts";
+
+// siteConfig.ts 里有一串无后缀的相对 import（"../utils/page-toggle-utils" 之类），
+// Vite 能补后缀，裸 node 的 ESM 解析器不能，直接 import 会让整个脚本起不来。
+// 这里只需要一个时区字符串，用正则从源码里取即可。
+function readSiteTimezone() {
+	const fallback = "Asia/Shanghai";
+	try {
+		const source = fs.readFileSync(
+			path.resolve(import.meta.dirname, "../src/config/siteConfig.ts"),
+			"utf8",
+		);
+		return /^\s*timezone:\s*["'`]([^"'`]+)["'`]/m.exec(source)?.[1] || fallback;
+	} catch {
+		return fallback;
+	}
+}
 
 const content = process.argv.slice(2).join(" ").trim();
 
@@ -14,7 +29,7 @@ if (!content) {
 }
 
 const now = new Date();
-const timezone = siteConfig.timezone || "Asia/Shanghai";
+const timezone = readSiteTimezone();
 const dateParts = new Intl.DateTimeFormat("en-CA", {
 	timeZone: timezone,
 	year: "numeric",

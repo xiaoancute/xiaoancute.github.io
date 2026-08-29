@@ -1,8 +1,14 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import readline from "node:readline/promises";
+import {
+	applyFrontmatterEdits,
+	DELETE_FIELD,
+	splitFrontmatter,
+} from "./frontmatter-utils.js";
 
 const repoRoot = process.cwd();
 const postsDir = path.join(repoRoot, "src/content/posts");
@@ -11,6 +17,8 @@ const publicDir = path.join(repoRoot, "public");
 // 隔离区：删掉的文移到这里，不参与构建（对齐 quarantine-bad-posts.mjs），可随时手动恢复。
 const quarantineDir = path.join(repoRoot, "src/content/_quarantine");
 const dialogConfigPath = path.join(repoRoot, "scripts/blog-helper.dialogrc");
+// 站点把 frontmatter 日期当北京时间写、当 UTC 读（见 src/utils/date-utils.ts）。
+const SITE_TIMEZONE = "Asia/Shanghai";
 let matter;
 
 // pnpm 会把当前入口写入 npm_execpath。复用它可以避免 Termux 上多个 pnpm 安装互相串台。
@@ -22,15 +30,100 @@ const pnpmInvocation = (() => {
 	return { command: "pnpm", args: [] };
 })();
 
-const input = readline.createInterface({
-	input: process.stdin,
-	output: process.stdout,
-});
-const answers = input[Symbol.asyncIterator]();
 const hasDialog =
 	process.stdin.isTTY &&
 	process.stdout.isTTY &&
 	spawnSync("dialog", ["--version"], { stdio: "ignore" }).status === 0;
+
+// readline 一旦建立就会把 stdin 切进 raw 模式，而 raw 模式关掉了 ISIG——
+// 之后所有子进程（astro dev、pnpm build）都收不到 Ctrl+C 的 SIGINT，只能收到裸字节 0x03。
+// 所以这里只在真正要用 readline 的时候（没有 dialog 的降级路径）才建，且全程复用同一个迭代器。
+let inputInterface = null;
+let inputIterator = null;
+async function readLine() {
+	if (!inputInterface) {
+		inputInterface = readline.createInterface({
+			input: process.stdin,
+			output: process.stdout,
+		});
+		inputIterator = inputInterface[Symbol.asyncIterator]();
+	}
+	const { value = "" } = await inputIterator.next();
+	return value;
+}
+
+// 让用户看完控制台输出再回菜单——下一个 dialog 的 --clear 会把屏幕擦干净。
+async function pause(message = "按回车键返回菜单…") {
+	process.stdout.write(`\n${message}`);
+	if (inputInterface) {
+		await readLine();
+		return;
+	}
+	// dialog 模式下平时没有 readline，临时建一个，用完立刻关掉恢复终端模式。
+	const rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+	try {
+		await rl.question("");
+	} finally {
+		rl.close();
+	}
+}
+
+/* ---------------------------------------------------------------- 终端尺寸 */
+
+function termSize() {
+	return {
+		rows: Math.max(12, process.stdout.rows || 24),
+		cols: Math.max(36, process.stdout.columns || 80),
+	};
+}
+
+// 手机竖屏只有四十来列，写死 58/68/76 会被 dialog 挤成一团；按实际终端算。
+function boxWidth() {
+	const { cols } = termSize();
+	return Math.max(32, Math.min(cols - 4, 76));
+}
+
+// 全角字符占两列，估算说明文字折行后占几行
+function visualWidth(text) {
+	let width = 0;
+	for (const char of text) {
+		width +=
+			/[ᄀ-ᅟ⺀-꓏가-힣豈-﫿︰-﹏＀-｠￠-￦]/.test(
+				char,
+			)
+				? 2
+				: 1;
+	}
+	return width;
+}
+
+function wrappedLines(text, width) {
+	const inner = Math.max(10, width - 4);
+	return text
+		.split("\n")
+		.reduce(
+			(total, line) => total + Math.max(1, Math.ceil(visualWidth(line) / inner)),
+			0,
+		);
+}
+
+// 菜单盒子要留出标题、说明文字、按钮和上下边框。原来高度写死 16，
+// 11 个主菜单项装不下，"退出" 被顶到屏幕外只能靠滚动才能看到。
+function menuGeometry(itemCount, textLines = 0) {
+	const { rows } = termSize();
+	const chrome = 7 + textLines;
+	const box = Math.min(Math.max(rows - 2, chrome + 1), itemCount + chrome);
+	return {
+		height: String(box),
+		width: String(boxWidth()),
+		menuHeight: String(Math.max(1, box - chrome)),
+	};
+}
+
+/* ------------------------------------------------------------ dialog 封装 */
 
 function dialog(args, { allowCancel = true } = {}) {
 	const result = spawnSync(
@@ -39,7 +132,6 @@ function dialog(args, { allowCancel = true } = {}) {
 			"--stdout",
 			"--clear",
 			"--no-shadow",
-			"--no-lines",
 			"--no-mouse",
 			"--ok-label",
 			"确定",
@@ -51,22 +143,40 @@ function dialog(args, { allowCancel = true } = {}) {
 			cwd: repoRoot,
 			encoding: "utf8",
 			env: { ...process.env, DIALOGRC: dialogConfigPath },
-			stdio: ["inherit", "pipe", "inherit"],
+			stdio: ["inherit", "pipe", "pipe"],
 		},
 	);
+	if (result.error) throw result.error;
 	if (result.status === 0) return result.stdout.trim();
-	if (allowCancel && (result.status === 1 || result.status === 255))
-		return null;
-	throw new Error("终端界面启动失败");
+	// dialog 用 255 同时表示「按了 ESC」和「自己出错了」（比如盒子摆不下）。
+	// 只有出错时它才会往 stderr 写东西，靠这个区分，别把报错悄悄当成用户取消。
+	const stderr = (result.stderr || "").trim();
+	if (stderr) throw new Error(`终端界面出错：${stderr}`);
+	if (allowCancel && (result.status === 1 || result.status === 255)) return null;
+	throw new Error(`终端界面异常退出（代码 ${result.status}）`);
 }
 
 function notice(title, message) {
 	if (hasDialog) {
-		dialog(["--title", title, "--msgbox", message, "8", "58"]);
+		const width = boxWidth();
+		const height = Math.min(
+			termSize().rows - 2,
+			wrappedLines(message, width) + 6,
+		);
+		dialog([
+			"--title",
+			title,
+			"--msgbox",
+			message,
+			String(height),
+			String(width),
+		]);
 		return;
 	}
 	console.log(`\n${title}\n${message}\n`);
 }
+
+/* ---------------------------------------------------------------- 子进程 */
 
 function run(command, args, options = {}) {
 	const result = spawnSync(command, args, {
@@ -75,13 +185,30 @@ function run(command, args, options = {}) {
 		...options,
 	});
 	if (result.error) throw result.error;
+	// 用户自己按 Ctrl+C 掐掉子进程不算失败。子进程可能是被信号打死（signal 有值），
+	// 也可能自己装了 handler 后按惯例退出 128+signo（astro dev / vite 就是 130）。
+	if (result.signal === "SIGINT" || result.signal === "SIGTERM") return false;
+	if (result.status === 130 || result.status === 143) return false;
 	if (result.status !== 0) {
 		throw new Error(`${command} ${args.join(" ")} 执行失败`);
 	}
+	return true;
 }
 
 function runPnpm(args, options = {}) {
-	run(pnpmInvocation.command, [...pnpmInvocation.args, ...args], options);
+	return run(pnpmInvocation.command, [...pnpmInvocation.args, ...args], options);
+}
+
+// 跑长命令时先接管 SIGINT：spawnSync 期间事件循环是停的，信号会排队等回来再处理，
+// 于是 Ctrl+C 只掐掉子进程，本进程不会跟着一起死。
+function runInterruptible(fn) {
+	const swallow = () => {};
+	process.on("SIGINT", swallow);
+	try {
+		return fn();
+	} finally {
+		process.off("SIGINT", swallow);
+	}
 }
 
 function installDependencies() {
@@ -119,6 +246,8 @@ function capture(command, args, { optional = false } = {}) {
 	if (result.status !== 0) return "";
 	return result.stdout.trim();
 }
+
+/* -------------------------------------------------------------- 内容读取 */
 
 function getPostFiles(directory = postsDir) {
 	return fs
@@ -200,46 +329,47 @@ function resolvePostPath(fileName) {
 	return filePath;
 }
 
-// frontmatter 里 published/updated 原写成 YYYY-MM-DD，gray-matter 读入时解析成 Date；
-// 若直接 matter.stringify，Date 会被序列化为 ISO8601 长格式，造成无意义的 diff。
-// 写回前把这两个字段转回 YYYY-MM-DD；非 Date 值保持原样。
-function toDateString(value) {
-	return value instanceof Date ? value.toISOString().slice(0, 10) : value;
+/* ------------------------------------------------------ frontmatter 定点改写 */
+
+function updateFrontmatter(filePath, edits) {
+	if (Object.keys(edits).length === 0) return false;
+	const source = fs.readFileSync(filePath, "utf8");
+	fs.writeFileSync(filePath, applyFrontmatterEdits(source, edits));
+	return true;
 }
 
-// gray-matter（js-yaml）会把形如 2026-08-08 的纯字符串自动加上引号，防止被反解成时间戳；
-// 而站点 schema 要求 published/updated 是日期类型，带引号会让 Astro 构建报
-// "Expected type 'date', received 'string'"。序列化后把这些日期字段的引号剥掉。
-function stringifyFrontmatter(content, data) {
-	const output = matter.stringify(content, data);
-	return output.replace(
-		/^(\s*(?:published|updated):\s*)'(\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}:\d{2})?)'\s*$/gm,
-		"$1$2",
-	);
+function updateDynamicBody(filePath, nextContent) {
+	const source = fs.readFileSync(filePath, "utf8");
+	const { open, block, close } = splitFrontmatter(source);
+	fs.writeFileSync(filePath, `${open}${block}${close}\n${nextContent.trim()}\n`);
 }
 
-function writePost(filePath, parsed) {
-	const data = { ...parsed.data };
-	if (data.published) data.published = toDateString(data.published);
-	if (data.updated) data.updated = toDateString(data.updated);
-	fs.writeFileSync(filePath, stringifyFrontmatter(parsed.content, data));
+/* ------------------------------------------------------------------ 日期 */
+
+// 按北京时间取“今天”。原来用的 toISOString() 是 UTC，本地 00:00–08:00 之间
+// 写出来的 updated 会差一天。
+function todayInSiteTimezone() {
+	return new Intl.DateTimeFormat("en-CA", {
+		timeZone: SITE_TIMEZONE,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).format(new Date());
 }
 
-// 微语的 published 是 YYYY-MM-DD HH:MM:SS 格式，与文章的纯日期不同，
-// 必须自己格式化回带时分秒的字符串，否则 gray-matter 会把它序列化成 ISO8601。
+// 微语的 published 是 "YYYY-MM-DD HH:MM:SS"，不带时区。
+// js-yaml 把这种时间戳按 UTC 解析，站点也按 UTC 渲染（date-utils.ts 里 timeZone: "UTC"），
+// 所以写回时必须用 getUTC* 取值，否则每编辑一次时间就平移一个时区偏移（北京 = +8 小时）。
 function toDateTimeString(value) {
 	if (!(value instanceof Date)) return value;
 	const pad = (n) => String(n).padStart(2, "0");
-	return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(
-		value.getDate(),
-	)} ${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}`;
+	return (
+		`${value.getUTCFullYear()}-${pad(value.getUTCMonth() + 1)}-${pad(value.getUTCDate())}` +
+		` ${pad(value.getUTCHours())}:${pad(value.getUTCMinutes())}:${pad(value.getUTCSeconds())}`
+	);
 }
 
-function writeDynamic(filePath, parsed) {
-	const data = { ...parsed.data };
-	if (data.published) data.published = toDateTimeString(data.published);
-	fs.writeFileSync(filePath, stringifyFrontmatter(parsed.content, data));
-}
+/* -------------------------------------------------------------- 输入组件 */
 
 // 列出 public 目录下常见图片，供“封面图”快捷选用
 const IMAGE_RE = /\.(png|jpe?g|webp|avif|gif|svg)$/i;
@@ -276,34 +406,49 @@ function parseTags(input) {
 
 async function ask(question, defaultValue = "") {
 	if (hasDialog) {
+		const width = boxWidth();
+		// 原来是把整句问题塞进 --title，标题会被盒宽截断；问题该放正文里。
+		const height = Math.min(
+			termSize().rows - 2,
+			wrappedLines(question, width) + 7,
+		);
 		return dialog([
 			"--title",
-			question,
+			"博客小助手",
 			"--inputbox",
-			"",
-			"8",
-			"58",
+			question,
+			String(height),
+			String(width),
 			defaultValue,
 		]);
 	}
 	const suffix = defaultValue ? `（默认：${defaultValue}）` : "";
 	process.stdout.write(`${question}${suffix}: `);
-	const { value = "" } = await answers.next();
-	const answer = value.trim();
+	const answer = (await readLine()).trim();
 	return answer || defaultValue;
 }
 
 async function confirm(question, defaultYes = false) {
 	if (hasDialog) {
-		const args = ["--title", "请确认"];
+		const width = boxWidth();
+		const height = Math.min(
+			termSize().rows - 2,
+			wrappedLines(question, width) + 6,
+		);
+		const args = ["--title", "请确认", "--yes-label", "是", "--no-label", "否"];
 		if (!defaultYes) args.push("--defaultno");
-		const result = dialog([...args, "--yesno", question, "8", "58"]);
+		const result = dialog([
+			...args,
+			"--yesno",
+			question,
+			String(height),
+			String(width),
+		]);
 		return result !== null;
 	}
 	const hint = defaultYes ? "Y/n" : "y/N";
 	process.stdout.write(`${question} [${hint}] `);
-	const { value = "" } = await answers.next();
-	const answer = value.trim().toLowerCase();
+	const answer = (await readLine()).trim().toLowerCase();
 	if (!answer) return defaultYes;
 	return answer === "y" || answer === "yes" || answer === "是";
 }
@@ -311,7 +456,7 @@ async function confirm(question, defaultYes = false) {
 // 通用“从选项里选一个”。options: [{key,label}]。返回 key 或 null（取消）。
 async function selectOption(title, options) {
 	if (hasDialog) {
-		const height = String(Math.min(options.length + 7, 22));
+		const { height, width, menuHeight } = menuGeometry(options.length);
 		const result = dialog([
 			"--title",
 			title,
@@ -319,65 +464,132 @@ async function selectOption(title, options) {
 			"--menu",
 			"",
 			height,
-			"60",
-			String(Math.min(options.length, 14)),
+			width,
+			menuHeight,
 			...options.flatMap((opt) => [opt.key, opt.label]),
 		]);
 		return result === null ? null : result;
 	}
+	// 降级路径统一用 1 开始编号，跟其它菜单保持一致
 	console.log(`\n${title}`);
 	for (const [index, opt] of options.entries()) {
-		console.log(`  ${index}. ${opt.label}`);
+		console.log(`${String(index + 1).padStart(2, " ")}. ${opt.label}`);
 	}
 	const answer = await ask("输入编号，直接回车取消");
 	if (!answer) return null;
-	const index = Number.parseInt(answer, 10);
+	const index = Number.parseInt(answer, 10) - 1;
 	if (!Number.isInteger(index) || !options[index]) {
-		console.log("编号无效。\n");
+		notice("编号无效", `请输入 1 到 ${options.length} 之间的编号。`);
 		return null;
 	}
 	return options[index].key;
 }
 
-// 编辑一个字段：展示当前值，回车保留，输入新值则覆盖。取消则跳过。
-// ask 在 readline 下回车会返回 defaultValue（即当前值），无需特判。
-async function editField(label, currentValue) {
-	const display =
-		currentValue === "" || currentValue == null
-			? "（空）"
-			: String(currentValue);
-	const result = await ask(`${label}  当前：${display}`, currentValue ?? "");
-	return result === null ? null : result;
+// 非 dialog 模式下回车表示「保留原值」，所以约定输入单个 "-" 表示清空。
+const CLEAR_TOKEN = "-";
+
+// 编辑一个字段：展示当前值，回车保留，输入新值则覆盖。取消返回 null（跳过该项）。
+async function editField(label, currentValue, { allowClear = true } = {}) {
+	const current = currentValue == null ? "" : String(currentValue);
+	if (hasDialog) {
+		const question = allowClear
+			? `${label}\n（清空输入框即可删除该项，按 ESC 跳过不改）`
+			: label;
+		return await ask(question, current);
+	}
+	const clearHint = allowClear ? `，输入 ${CLEAR_TOKEN} 清空` : "";
+	const result = await ask(
+		`${label}  当前：${current || "（空）"}（回车保留${clearHint}）`,
+		current,
+	);
+	if (result === null) return null;
+	return allowClear && result.trim() === CLEAR_TOKEN ? "" : result;
 }
 
-// 选封面图：从 public 里列图 + 随机封面(api) + 手动输入。回车=保留当前值。
+// 多行编辑（微语正文）。原来用单行 inputbox，多行正文一编辑就被压成一行。
+async function editMultiline(title, current) {
+	if (!hasDialog) {
+		notice(
+			title,
+			"当前终端没有 dialog，无法多行编辑。\n请直接用编辑器修改对应的 .md 文件。",
+		);
+		return null;
+	}
+	const tempFile = path.join(
+		os.tmpdir(),
+		`blog-helper-${process.pid}-${Date.now()}.md`,
+	);
+	fs.writeFileSync(tempFile, `${current}\n`);
+	try {
+		const { rows } = termSize();
+		return dialog([
+			"--title",
+			title,
+			"--editbox",
+			tempFile,
+			String(Math.max(8, Math.min(rows - 2, 20))),
+			String(boxWidth()),
+		]);
+	} finally {
+		fs.rmSync(tempFile, { force: true });
+	}
+}
+
+// 选封面图。public 下有近百张图，全塞进菜单根本翻不完，所以先给几个常用选项，
+// 要浏览再进子菜单，数量多时先按关键词筛。
 async function chooseCoverImage(currentValue) {
 	const images = listPublicImages();
-	const options = [
+	const choice = await selectOption("封面图", [
 		{
 			key: "keep",
-			label: currentValue ? `保留当前（${currentValue}）` : "留空",
+			label: currentValue ? `保留当前（${currentValue}）` : "保持留空",
 		},
 		{ key: "api", label: "随机封面（api）" },
-		{ key: "manual", label: "手动输入路径/网址" },
-		...images.map((img, i) => ({ key: String(i), label: img })),
-	];
-	const choice = await selectOption("封面图", options);
-	if (choice === null || choice === "keep") return currentValue;
+		{ key: "manual", label: "手动输入路径或网址" },
+		{ key: "browse", label: `从 public/ 里挑（共 ${images.length} 张）` },
+		{ key: "clear", label: "清除封面" },
+	]);
+	if (choice === null || choice === "keep") return null;
 	if (choice === "api") return "api";
-	if (choice === "manual") return await ask("图片路径或网址");
-	return images[Number.parseInt(choice, 10)] ?? currentValue;
+	if (choice === "clear") return "";
+	if (choice === "manual") return await ask("图片路径或网址", currentValue);
+
+	let candidates = images;
+	if (candidates.length > 20) {
+		const keyword = await ask(
+			`共 ${images.length} 张图，输入关键词筛选（直接回车看全部）`,
+		);
+		if (keyword === null) return null;
+		if (keyword) {
+			const needle = keyword.toLocaleLowerCase("zh-CN");
+			candidates = images.filter((img) =>
+				img.toLocaleLowerCase("zh-CN").includes(needle),
+			);
+		}
+	}
+	if (candidates.length === 0) {
+		notice("没有匹配的图片", "换个关键词再试试。");
+		return null;
+	}
+	const picked = await selectOption(
+		`选一张图（${candidates.length}）`,
+		candidates.map((img, index) => ({ key: String(index), label: img })),
+	);
+	return picked === null ? null : candidates[Number.parseInt(picked, 10)];
 }
 
-// 选语言：候选来自 src/i18n/languages/ 的实际语言文件。回车=保留当前。
+// 选语言：候选来自 src/i18n/languages/ 的实际语言文件。
 // 返回 null=取消（保留原样）；""=清除（用站点默认）；否则为语言 code。
 async function chooseLang(currentValue) {
 	const langDir = path.join(repoRoot, "src/i18n/languages");
-	const display = currentValue
-		? `保留当前（${currentValue}）`
-		: "留空（用站点默认）";
 	const options = [
-		{ key: "keep", label: display },
+		{
+			key: "keep",
+			label: currentValue
+				? `保留当前（${currentValue}）`
+				: "保持留空（用站点默认）",
+		},
+		{ key: "clear", label: "清除（用站点默认）" },
 		{ key: "custom", label: "手动输入语言 code" },
 	];
 	if (fs.existsSync(langDir)) {
@@ -403,18 +615,21 @@ async function chooseLang(currentValue) {
 	}
 	const choice = await selectOption("语言", options);
 	if (choice === null || choice === "keep") return null;
+	if (choice === "clear") return "";
 	if (choice === "custom") {
-		const v = await ask("语言 code（如 zh_CN、en）", currentValue);
-		return v === null ? null : v.trim();
+		const value = await ask("语言 code（如 zh_CN、en）", currentValue);
+		return value === null ? null : value.trim();
 	}
 	return choice.slice("lang:".length);
 }
+
+/* ---------------------------------------------------------------- 各功能 */
 
 async function createPost() {
 	const title = await ask("文章标题");
 	if (title === null) return;
 	if (!title) {
-		console.log("已取消：标题不能为空。");
+		notice("已取消", "标题不能为空。");
 		return;
 	}
 
@@ -423,46 +638,34 @@ async function createPost() {
 	let category;
 	let tags;
 	if (hasDialog) {
+		// --form 的字段位置是写死的坐标，盒子被终端挤窄时会被裁掉，所以按实际宽度排布
+		const width = boxWidth();
+		const labelWidth = 18;
+		const fieldWidth = Math.max(12, width - labelWidth - 6);
+		const fields = [
+			["文件名", title],
+			["一句话简介", ""],
+			["分类", ""],
+			["标签（逗号分隔）", ""],
+		];
 		const result = dialog([
 			"--title",
 			"文章信息",
 			"--form",
 			"",
-			"14",
-			"68",
-			"5",
-			"文件名",
-			"1",
-			"1",
-			title,
-			"1",
-			"18",
-			"50",
-			"0",
-			"一句话简介",
-			"2",
-			"1",
-			"",
-			"2",
-			"18",
-			"50",
-			"0",
-			"分类",
-			"3",
-			"1",
-			"",
-			"3",
-			"18",
-			"50",
-			"0",
-			"标签（逗号分隔）",
+			String(Math.min(termSize().rows - 2, 14)),
+			String(width),
 			"4",
-			"1",
-			"",
-			"4",
-			"18",
-			"50",
-			"0",
+			...fields.flatMap(([label, value], index) => [
+				label,
+				String(index + 1),
+				"1",
+				value,
+				String(index + 1),
+				String(labelWidth),
+				String(fieldWidth),
+				"0",
+			]),
 		]);
 		if (result === null) return;
 		[fileName = title, description = "", category = "", tags = ""] =
@@ -474,26 +677,27 @@ async function createPost() {
 		category = await ask("分类（可留空）");
 		tags = await ask("标签，多个用逗号分隔（可留空）");
 	}
-	fileName = fileName.trim();
-	if (!fileName) throw new Error("文件名不能为空");
+	fileName = (fileName ?? "").trim();
+	if (!fileName) {
+		notice("已取消", "文件名不能为空。");
+		return;
+	}
 
 	const filePath = resolvePostPath(fileName);
+	if (fs.existsSync(filePath)) {
+		notice("文件已存在", `${relativePostPath(filePath)}\n\n换个文件名再试。`);
+		return;
+	}
 	run("node", ["scripts/new-post.js", fileName]);
 
 	try {
-		const { parsed } = readPost(filePath);
-		parsed.data.title = title;
-		parsed.data.description = description ?? "";
-		parsed.data.category = category ?? "";
-		tags ??= "";
-		parsed.data.tags = tags
-			? tags
-					.split(/[,，]/)
-					.map((tag) => tag.trim())
-					.filter(Boolean)
-			: [];
-		parsed.data.draft = true;
-		writePost(filePath, parsed);
+		updateFrontmatter(filePath, {
+			title,
+			description: description ?? "",
+			category: category ?? "",
+			tags: parseTags(tags ?? ""),
+			draft: true,
+		});
 	} catch (error) {
 		fs.rmSync(filePath, { force: true });
 		throw error;
@@ -507,25 +711,23 @@ async function createPost() {
 
 async function choosePost() {
 	let posts = getPosts();
+	if (posts.length === 0) {
+		notice("还没有文章", "src/content/posts/ 下还没有任何文章。");
+		return null;
+	}
 
 	if (hasDialog) {
-		const filter = dialog([
-			"--title",
-			"文章范围",
-			"--no-tags",
-			"--menu",
-			"",
-			"11",
-			"50",
-			"5",
-			"all",
-			`全部文章（${posts.length}）`,
-			"draft",
-			`仅草稿（${posts.filter((post) => post.draft).length}）`,
-			"published",
-			`仅公开（${posts.filter((post) => !post.draft).length}）`,
-			"search",
-			"按标题搜索",
+		const filter = await selectOption("文章范围", [
+			{ key: "all", label: `全部文章（${posts.length}）` },
+			{
+				key: "draft",
+				label: `仅草稿（${posts.filter((post) => post.draft).length}）`,
+			},
+			{
+				key: "published",
+				label: `仅公开（${posts.filter((post) => !post.draft).length}）`,
+			},
+			{ key: "search", label: "按标题搜索" },
 		]);
 		if (filter === null) return null;
 		if (filter === "draft") posts = posts.filter((post) => post.draft);
@@ -543,21 +745,18 @@ async function choosePost() {
 				return null;
 			}
 		}
+		if (posts.length === 0) {
+			notice("这里是空的", "该范围下没有文章。");
+			return null;
+		}
 
-		const choice = dialog([
-			"--title",
+		const choice = await selectOption(
 			"选择文章",
-			"--no-tags",
-			"--menu",
-			"",
-			"20",
-			"76",
-			"14",
-			...posts.flatMap((post, index) => [
-				String(index),
-				`${post.draft ? "[草稿]" : "[公开]"} ${post.title}`,
-			]),
-		]);
+			posts.map((post, index) => ({
+				key: String(index),
+				label: `${post.draft ? "[草稿]" : "[公开]"} ${post.title}`,
+			})),
+		);
 		return choice === null ? null : posts[Number.parseInt(choice, 10)];
 	}
 
@@ -572,7 +771,7 @@ async function choosePost() {
 	if (!answer) return null;
 	const index = Number.parseInt(answer, 10) - 1;
 	if (!Number.isInteger(index) || !posts[index]) {
-		console.log("文章编号无效。\n");
+		notice("编号无效", `请输入 1 到 ${posts.length} 之间的编号。`);
 		return null;
 	}
 	return posts[index];
@@ -581,15 +780,13 @@ async function choosePost() {
 async function changeVisibility() {
 	const post = await choosePost();
 	if (!post) return;
-	const { parsed } = readPost(post.filePath);
 	const nextDraft = !post.draft;
 	const action = nextDraft ? "隐藏" : "公开";
 	if (!(await confirm(`确认${action}《${post.title}》？`))) return;
-	parsed.data.draft = nextDraft;
-	if (!nextDraft) {
-		parsed.data.updated = new Date().toISOString().slice(0, 10);
-	}
-	writePost(post.filePath, parsed);
+
+	const edits = { draft: nextDraft };
+	if (!nextDraft) edits.updated = todayInSiteTimezone();
+	updateFrontmatter(post.filePath, edits);
 	notice(`已${action}`, relativePostPath(post.filePath));
 }
 
@@ -640,19 +837,25 @@ async function chooseDynamic() {
 		notice("没有微语", "src/content/dynamic/ 下还没有任何微语。");
 		return null;
 	}
-	const recent = dynamics.slice(0, 30);
-	const options = recent.map((dyn, index) => {
+	const describe = (dyn, limit) => {
 		const stamp =
 			dyn.published instanceof Date
 				? toDateTimeString(dyn.published)
 				: String(dyn.published ?? "");
 		const pin = dyn.pinned ? "📌" : "  ";
 		const loc = dyn.location ? ` @${dyn.location}` : "";
-		// 菜单项截断，太长看不全
 		const prev =
-			dyn.preview.length > 32 ? `${dyn.preview.slice(0, 30)}…` : dyn.preview;
-		return { key: String(index), label: `${pin} ${stamp}${loc}  ${prev}` };
-	});
+			dyn.preview.length > limit
+				? `${dyn.preview.slice(0, limit - 2)}…`
+				: dyn.preview;
+		return `${pin} ${stamp}${loc}  ${prev}`;
+	};
+
+	const recent = dynamics.slice(0, 30);
+	const options = recent.map((dyn, index) => ({
+		key: String(index),
+		label: describe(dyn, 32),
+	}));
 	if (dynamics.length > recent.length) {
 		options.push({
 			key: "search",
@@ -673,17 +876,13 @@ async function chooseDynamic() {
 			notice("没找到", `没有正文包含“${keyword}”的微语。`);
 			return null;
 		}
-		const mOptions = matched.map((dyn, index) => {
-			const stamp =
-				dyn.published instanceof Date
-					? toDateTimeString(dyn.published)
-					: String(dyn.published ?? "");
-			const pin = dyn.pinned ? "📌" : "  ";
-			const prev =
-				dyn.preview.length > 36 ? `${dyn.preview.slice(0, 34)}…` : dyn.preview;
-			return { key: String(index), label: `${pin} ${stamp}  ${prev}` };
-		});
-		const mChoice = await selectOption(`搜到 ${matched.length} 条`, mOptions);
+		const mChoice = await selectOption(
+			`搜到 ${matched.length} 条`,
+			matched.map((dyn, index) => ({
+				key: String(index),
+				label: describe(dyn, 36),
+			})),
+		);
 		return mChoice === null ? null : matched[Number.parseInt(mChoice, 10)];
 	}
 	return recent[Number.parseInt(choice, 10)];
@@ -709,44 +908,51 @@ async function manageDynamic() {
 		return;
 	}
 
-	const { parsed } = readPost(dyn.filePath);
-
 	if (action === "content") {
-		const next = await editField("正文（Markdown）", dyn.content);
+		const next = await editMultiline("正文（Markdown，支持多行）", dyn.content);
 		if (next === null) return;
 		if (!next.trim()) {
-			console.log("正文不能为空，已保持原样。");
+			notice("没有改动", "正文不能为空，已保持原样。");
 			return;
 		}
-		// editField 返回单行；微语本就是短文本，保留单行编辑即可
-		parsed.content = `\n${next}\n`;
+		updateDynamicBody(dyn.filePath, next);
+		notice("已更新", relativePostPath(dyn.filePath));
+		return;
 	}
 
 	if (action === "pinned") {
-		const nextPinned = !dyn.pinned;
-		if (nextPinned) parsed.data.pinned = true;
-		else delete parsed.data.pinned;
+		updateFrontmatter(dyn.filePath, {
+			pinned: dyn.pinned ? DELETE_FIELD : true,
+		});
+		notice(dyn.pinned ? "已取消置顶" : "已置顶", relativePostPath(dyn.filePath));
+		return;
 	}
 
 	if (action === "location") {
-		const nextLoc = await editField("位置（留空则清除）", dyn.location);
+		const nextLoc = await editField("位置（清空则删除）", dyn.location);
 		if (nextLoc === null) return;
-		if (nextLoc.trim()) parsed.data.location = nextLoc.trim();
-		else delete parsed.data.location;
+		const trimmed = nextLoc.trim();
+		if (trimmed === dyn.location) {
+			notice("没有改动", "位置和原来一样。");
+			return;
+		}
+		updateFrontmatter(dyn.filePath, {
+			location: trimmed ? trimmed : DELETE_FIELD,
+		});
+		notice("已更新", relativePostPath(dyn.filePath));
 	}
-
-	writeDynamic(dyn.filePath, parsed);
-	notice("已更新", relativePostPath(dyn.filePath));
 }
 
 async function createDynamic() {
-	const content = await ask("写一条动态（支持 Markdown）");
+	const content = hasDialog
+		? await editMultiline("写一条动态（支持 Markdown，可多行）", "")
+		: await ask("写一条动态（支持 Markdown）");
 	if (content === null) return;
-	if (!content) {
-		console.log("已取消：内容不能为空。");
+	if (!content.trim()) {
+		notice("已取消", "内容不能为空。");
 		return;
 	}
-	run("node", ["scripts/new-dynamic.js", content]);
+	run("node", ["scripts/new-dynamic.js", content.trim()]);
 	notice("动态已记录", "已写入 src/content/dynamic/，预览可见。");
 }
 
@@ -755,120 +961,141 @@ async function editPostInfo() {
 	if (!post) return;
 	const { parsed } = readPost(post.filePath);
 	const d = parsed.data;
+	const edits = {};
 
-	console.log(`\n正在编辑《${post.title}》`);
-	console.log(
-		"逐项修改：回车保留当前值，输入新值则覆盖，取消(Ctrl-C/ESC)跳过该项。\n",
-	);
+	// 这些字段留空就直接把整行删掉；其余留空写成 ''（schema 有默认值，留着更直观）
+	const OPTIONAL_FIELDS = new Set([
+		"slug",
+		"lang",
+		"pinned",
+		"password",
+		"passwordHint",
+	]);
+	// next === null 表示用户按 ESC 跳过这一项——必须原样保留，
+	// 直接赋值会写出 description: null，下次构建 schema 直接报 expected string。
+	const setField = (key, next) => {
+		if (next === null) return;
+		const current = d[key];
+		const currentText =
+			current === undefined || current === null ? "" : String(current);
+		if (next === "" && OPTIONAL_FIELDS.has(key)) {
+			if (current !== undefined) edits[key] = DELETE_FIELD;
+			return;
+		}
+		if (String(next) !== currentText) edits[key] = next;
+	};
 
-	const title = await editField("标题", d.title);
-	if (title === null || !title) return;
+	const title = await editField("标题", d.title, { allowClear: false });
+	if (title === null) return;
+	if (!title.trim()) {
+		notice("已取消", "标题不能为空。");
+		return;
+	}
+	setField("title", title.trim());
 
-	const description = await editField("一句话简介", d.description ?? "");
-
-	const category = await editField("分类（可留空）", d.category ?? "");
+	setField("description", await editField("一句话简介", d.description ?? ""));
+	setField("category", await editField("分类（可留空）", d.category ?? ""));
 
 	const tagsRaw = await editField("标签（逗号分隔）", tagsToString(d.tags));
-	const tags = tagsRaw === null ? d.tags : parseTags(tagsRaw);
+	if (tagsRaw !== null) {
+		const nextTags = parseTags(tagsRaw);
+		if (nextTags.join(" ") !== (d.tags ?? []).join(" ")) {
+			edits.tags = nextTags;
+		}
+	}
 
+	// chooseCoverImage 返回 null 表示不改，"" 表示清除
 	const image = await chooseCoverImage(d.image ?? "");
+	if (image !== null && image !== (d.image ?? "")) edits.image = image;
 
 	const pinnedChoice = await selectOption("是否置顶", [
-		{ key: "true", label: "置顶" },
-		{ key: "false", label: "不置顶" },
 		{
 			key: "keep",
 			label: d.pinned ? "保留当前（置顶）" : "保留当前（不置顶）",
 		},
+		{ key: "true", label: "置顶" },
+		{ key: "false", label: "不置顶" },
 	]);
-	const pinned =
-		pinnedChoice === "keep" || pinnedChoice === null
-			? d.pinned
-			: pinnedChoice === "true";
+	if (pinnedChoice !== null && pinnedChoice !== "keep") {
+		const nextPinned = pinnedChoice === "true";
+		// 原本没写 pinned 又选「不置顶」的话没什么可改；其余情况照实写 true / false
+		if (nextPinned !== (d.pinned === true)) edits.pinned = nextPinned;
+	}
 
-	const slug = await editField(
-		"自定义 slug（可留空，留空用文件名）",
-		d.slug ?? "",
+	setField(
+		"slug",
+		await editField("自定义 slug（清空则用文件名）", d.slug ?? ""),
 	);
 
 	// 语言：用于 <html lang> 和 SEO。候选来自实际启用的 i18n 语言文件。
-	const lang = await chooseLang(d.lang ?? "");
+	setField("lang", await chooseLang(d.lang ?? ""));
 
 	// 加密：留空=公开文章；填密码=构建时 AES-256-GCM 加密，访客需输入密码解密。
 	const password = await editField(
-		"密码（留空则公开，填了则加密）",
+		"密码（清空则公开，填了则加密）",
 		d.password ?? "",
 	);
-	let passwordHint = d.passwordHint ?? "";
+	setField("password", password);
 	if (password !== null && password) {
-		const hint = await editField("密码提示（访客可见）", d.passwordHint ?? "");
-		passwordHint = hint ?? "";
+		setField("passwordHint", await editField("密码提示（访客可见）", d.passwordHint ?? ""));
+	} else if (password === "" && d.passwordHint !== undefined) {
+		edits.passwordHint = DELETE_FIELD;
 	}
 
-	parsed.data.title = title;
-	parsed.data.description = description;
-	parsed.data.category = category || "";
-	parsed.data.tags = tags;
-	parsed.data.image = image || "";
-	if (pinned) parsed.data.pinned = true;
-	else delete parsed.data.pinned;
-	if (slug) parsed.data.slug = slug;
-	else delete parsed.data.slug;
-
-	if (lang === null) {
-		// 用户取消，保留原样
-	} else if (lang === "") {
-		delete parsed.data.lang;
-	} else {
-		parsed.data.lang = lang;
+	if (!updateFrontmatter(post.filePath, edits)) {
+		notice("没有改动", "所有字段都保持原样，文件没有被修改。");
+		return;
 	}
-
-	if (password === null) {
-		// 用户取消，保留原样
-	} else if (password === "") {
-		delete parsed.data.password;
-		delete parsed.data.passwordHint;
-	} else {
-		parsed.data.password = password;
-		parsed.data.passwordHint = passwordHint;
-	}
-
-	writePost(post.filePath, parsed);
-	notice("已更新", relativePostPath(post.filePath));
+	notice(
+		"已更新",
+		`${relativePostPath(post.filePath)}\n\n改动字段：${Object.keys(edits).join("、")}`,
+	);
 }
 
-function preview() {
-	console.log("正在启动预览，浏览器地址：http://localhost:4321");
-	console.log("按 Ctrl+C 可以停止。\n");
-	runPnpm(["dev"], { stdio: "inherit" });
+async function preview() {
+	console.log("正在启动预览，浏览器打开 http://localhost:4321");
+	console.log("按 Ctrl+C 停止预览并返回菜单。\n");
+	runInterruptible(() => runPnpm(["dev"], { stdio: "inherit" }));
+	await pause();
 }
 
-function validate() {
+async function validate() {
 	console.log("\n正在执行完整检查");
-	console.log("Biome -> Astro -> TypeScript -> Production build\n");
-	runPnpm(["exec", "biome", "ci", "./src"]);
-	runPnpm(["check"]);
-	runPnpm(["type-check"]);
-	runPnpm(["build"]);
-	notice("全部检查通过", "代码质量、类型检查和生产构建均已完成。 ");
+	console.log("Biome -> Astro -> TypeScript -> Production build");
+	console.log("按 Ctrl+C 可以中断。\n");
+	try {
+		runInterruptible(() => {
+			runPnpm(["exec", "biome", "ci", "./src"]);
+			runPnpm(["check"]);
+			runPnpm(["type-check"]);
+			runPnpm(["build"]);
+		});
+	} catch (error) {
+		// 失败时上面的编译器输出才是重点，先让用户看完再让 dialog 清屏
+		console.error(`\n检查未通过：${error.message}`);
+		await pause("按回车键继续…");
+		throw error;
+	}
+	console.log("\n全部检查通过。");
+	await pause("按回车键继续…");
 }
 
 // 推送前先同步远程：远程有新提交时用 rebase 搬到其上，避免 push 被 non-fast-forward 拒绝。
 function syncAndPush(branch) {
 	capture("git", ["fetch", "origin"], { optional: true });
 	const upstream = `origin/${branch}`;
-	const behind = capture(
-		"git",
-		["rev-list", "--count", `HEAD..${upstream}`],
-		{ optional: true },
-	);
+	const behind = capture("git", ["rev-list", "--count", `HEAD..${upstream}`], {
+		optional: true,
+	});
 	if (Number.parseInt(behind ?? "0", 10) > 0) {
 		console.log(`远程有 ${behind} 个新提交，正在变基合并…`);
 		try {
 			run("git", ["rebase", upstream]);
 		} catch {
 			run("git", ["rebase", "--abort"]);
-			throw new Error("与远程改动冲突，已取消合并（本地提交完好），请手动处理后再发布");
+			throw new Error(
+				"与远程改动冲突，已取消合并（本地提交完好），请手动处理后再发布",
+			);
 		}
 	}
 	run("git", ["push", "origin", branch]);
@@ -882,14 +1109,15 @@ async function publish() {
 	}
 
 	if (hasDialog) {
+		const width = boxWidth();
 		dialog([
 			"--title",
 			"待发布改动",
 			"--scrollbar",
 			"--msgbox",
 			status,
-			"16",
-			"76",
+			String(Math.min(termSize().rows - 2, wrappedLines(status, width) + 6)),
+			String(width),
 		]);
 	} else {
 		console.log("\n准备发布以下改动：\n");
@@ -902,7 +1130,8 @@ async function publish() {
 		{ key: "quick", label: "快速发布（跳过检查，直接提交推送）" },
 		{ key: "full", label: "完整检查（Biome→Astro→TS→Build，较慢）" },
 	]);
-	if (doValidate === "full") validate();
+	if (doValidate === null) return;
+	if (doValidate === "full") await validate();
 
 	const message = await ask("提交说明", "content: update blog");
 	if (message === null) return;
@@ -935,6 +1164,20 @@ async function quickSync() {
 	notice("已同步", "代码已推送，GitHub Actions 会自动构建并部署博客。");
 }
 
+const MAIN_ACTIONS = [
+	{ key: "new", label: "写一篇新草稿" },
+	{ key: "dynamic", label: "写一条动态/微语" },
+	{ key: "manage-dynamic", label: "管理微语（编辑/删除/置顶/位置）" },
+	{ key: "edit", label: "编辑文章信息" },
+	{ key: "visibility", label: "公开或隐藏文章" },
+	{ key: "delete", label: "删除文章（移入隔离区）" },
+	{ key: "preview", label: "启动本地预览" },
+	{ key: "validate", label: "运行完整检查" },
+	{ key: "publish", label: "提交并发布" },
+	{ key: "sync", label: "快速同步（仅提交推送小改动）" },
+	{ key: "exit", label: "退出" },
+];
+
 async function chooseMainAction() {
 	const summary = getDashboardSummary();
 	const changeSummary =
@@ -942,29 +1185,18 @@ async function chooseMainAction() {
 			? "改动状态不可用"
 			: `${summary.changes} 个未提交文件`;
 	const dashboard = `公开 ${summary.published}  草稿 ${summary.drafts}  ${changeSummary}`;
-	const MAIN_ACTIONS = [
-		{ key: "new", label: "写一篇新草稿" },
-		{ key: "dynamic", label: "写一条动态/微语" },
-		{ key: "manage-dynamic", label: "管理微语（编辑/删除/置顶/位置）" },
-		{ key: "edit", label: "编辑文章信息" },
-		{ key: "visibility", label: "公开或隐藏文章" },
-		{ key: "delete", label: "删除文章（移入隔离区）" },
-		{ key: "preview", label: "启动本地预览" },
-		{ key: "validate", label: "运行完整检查" },
-		{ key: "publish", label: "提交并发布" },
-		{ key: "sync", label: "快速同步（仅提交推送小改动）" },
-		{ key: "exit", label: "退出" },
-	];
+
 	if (hasDialog) {
+		const { height, width, menuHeight } = menuGeometry(MAIN_ACTIONS.length, 1);
 		return dialog([
 			"--title",
 			"博客小助手",
 			"--no-tags",
 			"--menu",
 			dashboard,
-			"16",
-			"58",
-			String(MAIN_ACTIONS.length),
+			height,
+			width,
+			menuHeight,
 			...MAIN_ACTIONS.flatMap((action) => [action.key, action.label]),
 		]);
 	}
@@ -972,39 +1204,42 @@ async function chooseMainAction() {
 	console.log("\n博客小助手");
 	console.log(dashboard);
 	for (const [index, action] of MAIN_ACTIONS.entries()) {
-		if (action.key === "exit") {
-			console.log("0. 退出");
-			continue;
-		}
-		console.log(`${index + 1}. ${action.label}`);
+		console.log(`${String(index + 1).padStart(2, " ")}. ${action.label}`);
 	}
-	const choice = await ask("请选择");
-	const map = { 0: "exit" };
-	for (const [index, action] of MAIN_ACTIONS.entries()) {
-		map[index + 1] = action.key;
-	}
-	return map[choice];
+	const choice = Number.parseInt(await ask("请选择编号"), 10);
+	return MAIN_ACTIONS[choice - 1]?.key;
 }
+
+const HANDLERS = {
+	new: createPost,
+	dynamic: createDynamic,
+	"manage-dynamic": manageDynamic,
+	edit: editPostInfo,
+	visibility: changeVisibility,
+	delete: deletePost,
+	preview,
+	validate,
+	publish,
+	sync: quickSync,
+};
 
 async function menu() {
 	while (true) {
 		const choice = await chooseMainAction();
+		if (choice === "exit" || choice == null) return;
+
+		const handler = HANDLERS[choice];
+		if (!handler) {
+			notice("编号无效", `请输入 1 到 ${MAIN_ACTIONS.length} 之间的编号。`);
+			continue;
+		}
 
 		try {
-			if (choice === "new") await createPost();
-			else if (choice === "dynamic") await createDynamic();
-			else if (choice === "manage-dynamic") await manageDynamic();
-			else if (choice === "edit") await editPostInfo();
-			else if (choice === "visibility") await changeVisibility();
-			else if (choice === "delete") await deletePost();
-			else if (choice === "preview") preview();
-			else if (choice === "validate") validate();
-			else if (choice === "publish") await publish();
-			else if (choice === "sync") await quickSync();
-			else if (choice === "exit" || choice == null) return;
-			else console.log("请输入 0 到 10。\n");
+			await handler();
 		} catch (error) {
-			console.error(`\n操作失败：${error.message}\n`);
+			// 原来这里用 console.error，下一轮 dialog 的 --clear 会立刻把它擦掉，
+			// 结果就是菜单闪一下又回来了、完全看不到失败原因。改用 msgbox 挡住。
+			notice("操作失败", error.message || String(error));
 		}
 	}
 }
@@ -1016,5 +1251,5 @@ try {
 	console.error(`\n启动失败：${error.message}\n`);
 	process.exitCode = 1;
 } finally {
-	input.close();
+	inputInterface?.close();
 }
