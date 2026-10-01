@@ -3,22 +3,22 @@
 
 <div align="center">
 
-# 流萤 / Firefly
+# 流萤 / Firefly 
 > 一款清新美观的 Astro 静态博客主题模板
 > 
 > ![Node.js >= 22](https://img.shields.io/badge/node.js-%3E%3D22-brightgreen) 
 ![pnpm >= 11](https://img.shields.io/badge/pnpm-%3E%3D9-blue)
-![Astro](https://img.shields.io/badge/Astro-7.2.0-orange)
-![TypeScript](https://img.shields.io/badge/TypeScript-6.0.3-blue)
+![Astro](https://img.shields.io/badge/Astro-7-orange)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-blue)
 >
 > [![Stars](https://img.shields.io/github/stars/CuteLeaf/Firefly?style=social)](https://github.com/CuteLeaf/Firefly/stargazers)
 [![Forks](https://img.shields.io/github/forks/CuteLeaf/Firefly?style=social)](https://github.com/CuteLeaf/Firefly/network/members)
 [![Issues](https://img.shields.io/github/issues/CuteLeaf/Firefly)](https://github.com/CuteLeaf/Firefly/issues)
->
+> 
 > [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8Z41NQALY)
 >
 > **QQ交流群：[1087127207](https://qm.qq.com/q/ZGsFa8qX2G)**
->
+> 
 > ![GitHub License](https://img.shields.io/github/license/CuteLeaf/Firefly)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/CuteLeaf/Firefly)
 [![爱发电打赏](https://img.shields.io/badge/爱发电-打赏作者-ff69b4.svg)](https://ifdian.net/a/cuteleaf)
@@ -28,12 +28,12 @@
 
 ---
 📖 README：
-**[简体中文](README.md)** | **[繁體中文](docs/README.zh-TW.md)** | **[English](README.en.md)** | **[日本語](docs/README.ja.md)**
+**[简体中文](README.md)** | **[繁體中文](docs/README.zh-TW.md)** | **[English](README.en.md)** | **[日本語](docs/README.ja.md)** | **[한국어](docs/README.ko.md)**
 
 🚀 快速指南：
 [**🖥️在线预览**](https://firefly.cuteleaf.cn/) /
 [**📝使用文档**](https://docs-firefly.cuteleaf.cn/) /
-[**🍀我的博客**](https://blog.cuteleaf.cn)
+[**🍀我的博客**](https://blog.cuteleaf.cn) 
 
 ⚡ 静态站点生成: 基于 Astro 的超快加载速度和 SEO 优化
 
@@ -106,7 +106,7 @@
    git clone https://github.com/Cuteleaf/Firefly.git
    cd Firefly
    ```
-
+   
    **先 [Fork](https://github.com/CuteLeaf/Firefly/fork) 到自己仓库再克隆（推荐），记得先点 Star 再 Fork 哦！**
 
    ```bash
@@ -117,7 +117,7 @@
    ```bash
    # 如果没有安装 pnpm，先安装
    npm install -g pnpm
-
+   
    # 安装项目依赖
    pnpm install
    ```
@@ -130,9 +130,6 @@
    pnpm dev
    ```
    博客将在 `http://localhost:4321` 可用
-
-### 社区教程
-Cloudflare Workers 部署：[【不用服务器，无需备案，零成本搭建一个自己的个人博客】](https://www.bilibili.com/video/BV1hX9XBKEhm)
 
 ### 平台托管部署
 - **参考[官方指南](https://docs.astro.build/zh-cn/guides/deploy/)将博客部署至 Vercel, Netlify, Cloudflare Pages, EdgeOne Pages 等。**
@@ -189,7 +186,7 @@ src/
 │   ├── effectsConfig.ts          # 动画特效配置（樱花等）
 │   ├── expressiveCodeConfig.ts   # 代码高亮配置
 │   ├── fontConfig.ts             # 字体配置
-│   ├── footerConfig.ts           # 页脚配置
+│   ├── FooterConfig.html           # 页脚配置
 │   ├── friendsConfig.ts          # 友链配置
 │   ├── galleryConfig.ts          # 相册配置
 │   ├── licenseConfig.ts          # 许可证配置
@@ -268,17 +265,6 @@ location: China # 位置
 | `pnpm astro ...`           | 执行 `astro add`, `astro check` 等指令 |
 | `pnpm astro --help`        | 显示 Astro CLI 帮助                    |
 
-### 博客小助手
-
-不想记命令时，在项目根目录运行：
-
-```bash
-pnpm blog
-```
-
-即可打开菜单。菜单可以新建草稿、写一条动态/微语、编辑文章信息（标题/简介/分类/标签/封面/置顶/slug）、公开或隐藏文章、本地预览、运行完整检查，以及提交并推送更新（可选快速发布跳过构建）。新文章默认是草稿，本地预览可见，正式网站不会显示；准备好后在菜单中将它改为公开即可。
-在支持的 Linux 终端中会显示方向键操作的简洁菜单；其他环境（如手机 Termux）会自动使用兼容的数字菜单。
-
 ## 🙏 致谢
 
 非常感谢 [saicaca](https://github.com/saicaca) 开发的 [fuwari](https://github.com/saicaca/fuwari) 模板，Firefly 就是基于这个模板二次开发
@@ -287,8 +273,8 @@ pnpm blog
 
 ### 技术栈
 
-- [Astro](https://astro.build)
-- [Tailwind CSS](https://tailwindcss.com)
+- [Astro](https://astro.build) 
+- [Tailwind CSS](https://tailwindcss.com) 
 - [Iconify](https://iconify.design)
 
 ### 灵感项目
@@ -300,7 +286,7 @@ pnpm blog
 
 ### 其他参考
 - 博主`霞葉`的 [Bangumi 收藏](https://kasuha.com/posts/fuwari-enhance-ep2/) 页面组件
-- 哔哩哔哩up主 `公公的日常` 的Q版 [流萤看板娘 Spine 切片数据](https://www.bilibili.com/video/BV1fuVzzdE5y)
+- 哔哩哔哩up主 `公公的日常` 的Q版 [流萤看板娘 Spine 切片数据](https://www.bilibili.com/video/BV1fuVzzdE5y) 
 
 ## 📝 许可协议
 
@@ -310,7 +296,7 @@ pnpm blog
 
 **版权声明：**
 - Copyright (c) 2024 [saicaca](https://github.com/saicaca) - [fuwari](https://github.com/saicaca/fuwari)
-- Copyright (c) 2025 [CuteLeaf](https://github.com/CuteLeaf) - [Firefly](https://github.com/CuteLeaf/Firefly)
+- Copyright (c) 2025 [CuteLeaf](https://github.com/CuteLeaf) - [Firefly](https://github.com/CuteLeaf/Firefly) 
 
 根据 MIT 开源协议，你可以自由使用、修改、分发代码，但需保留上述版权声明。
 

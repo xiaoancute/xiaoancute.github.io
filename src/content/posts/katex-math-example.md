@@ -7,6 +7,8 @@ category: 文章示例
 draft: true
 image: api
 slug: katex-math-example
+series: "Firefly 功能示例2"
+seriesOrder: 6
 ---
 
 本文展示了 [Firefly](https://github.com/CuteLeaf/Firefly) 主题对 KaTeX 数学公式的渲染支持。

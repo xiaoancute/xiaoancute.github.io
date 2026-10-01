@@ -27,5 +27,11 @@ export const profileConfig: ProfileConfig = {
 			url: "https://github.com/xiaoancute",
 			showName: false,
 		},
+		{
+			name: "Atom",
+			icon: "fa7-solid:atom",
+			url: "/atom/",
+			showName: false,
+		},
 	],
 };
