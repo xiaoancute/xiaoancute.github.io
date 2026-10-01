@@ -61,8 +61,21 @@ function quoteScalar(value) {
 
 function serializeField(key, value, previousLine = "") {
 	if (typeof value === "boolean") return [`${key}: ${value}`];
+	if (typeof value === "number") return [`${key}: ${value}`];
 	if (Array.isArray(value)) {
 		if (value.length === 0) return [`${key}: []`];
+		// 对象数组（如项目外链 link）逐项展开成块状列表
+		if (value.every((item) => item && typeof item === "object")) {
+			return [
+				`${key}:`,
+				...value.flatMap((item) =>
+					Object.entries(item).map(
+						([field, fieldValue], index) =>
+							`  ${index === 0 ? "- " : "  "}${field}: ${quoteScalar(fieldValue)}`,
+					),
+				),
+			];
+		}
 		// 保持原来的书写风格：本来写成块状列表就继续用块状
 		const wasBlock = /^[A-Za-z_][\w-]*[ \t]*:[ \t]*$/.test(previousLine);
 		if (wasBlock) {
@@ -72,6 +85,14 @@ function serializeField(key, value, previousLine = "") {
 	}
 	if (PLAIN_DATE_FIELDS.has(key)) return [`${key}: ${value}`];
 	return [`${key}: ${quoteScalar(value)}`];
+}
+
+// 生成一个全新的 frontmatter 块（用于新建内容文件），复用同一套引号/日期规则。
+export function buildFrontmatter(fields) {
+	const lines = Object.entries(fields).flatMap(([key, value]) =>
+		serializeField(key, value),
+	);
+	return `---\n${lines.join("\n")}\n---\n`;
 }
 
 export function applyFrontmatterEdits(source, edits) {

@@ -6,6 +6,7 @@ import process from "node:process";
 import readline from "node:readline/promises";
 import {
 	applyFrontmatterEdits,
+	buildFrontmatter,
 	DELETE_FIELD,
 	splitFrontmatter,
 } from "./frontmatter-utils.js";
@@ -13,6 +14,7 @@ import {
 const repoRoot = process.cwd();
 const postsDir = path.join(repoRoot, "src/content/posts");
 const dynamicDir = path.join(repoRoot, "src/content/dynamic");
+const projectsDir = path.join(repoRoot, "src/content/projects");
 const publicDir = path.join(repoRoot, "public");
 // 隔离区：删掉的文移到这里，不参与构建（对齐 quarantine-bad-posts.mjs），可随时手动恢复。
 const quarantineDir = path.join(repoRoot, "src/content/_quarantine");
@@ -830,6 +832,367 @@ async function deletePost() {
 	);
 }
 
+/* -------------------------------------------------------------- 项目管理 */
+
+// 项目状态 key 与站点一致（见 src/utils/projects-utils.ts），前台会自动本地化。
+const PROJECT_STATUS = [
+	{ key: "planning", label: "计划中" },
+	{ key: "developing", label: "开发中" },
+	{ key: "published", label: "已发布" },
+	{ key: "archived", label: "已归档" },
+];
+
+function projectStatusLabel(status) {
+	return PROJECT_STATUS.find((item) => item.key === status)?.label ?? status;
+}
+
+function getProjects() {
+	if (!fs.existsSync(projectsDir)) return [];
+	return getPostFiles(projectsDir)
+		.map((filePath) => {
+			const { parsed } = readPost(filePath);
+			return {
+				filePath,
+				title: parsed.data.title || path.basename(filePath),
+				draft: parsed.data.draft === true,
+				status: parsed.data.status || "",
+				published:
+					parsed.data.published instanceof Date
+						? parsed.data.published.getTime()
+						: 0,
+				order:
+					typeof parsed.data.order === "number" ? parsed.data.order : null,
+			};
+		})
+		.sort((a, b) => {
+			// 与站点列表排序一致：order 大的在前，没有 order 的按发布日期倒序
+			const orderA = a.order ?? Number.NEGATIVE_INFINITY;
+			const orderB = b.order ?? Number.NEGATIVE_INFINITY;
+			if (orderA !== orderB) return orderB - orderA;
+			return b.published - a.published;
+		});
+}
+
+function resolveProjectPath(fileName) {
+	const extension = /\.(md|mdx)$/i.test(fileName) ? "" : ".md";
+	const filePath = path.resolve(projectsDir, `${fileName}${extension}`);
+	if (!filePath.startsWith(`${projectsDir}${path.sep}`)) {
+		throw new Error("项目文件必须放在 src/content/projects 目录中");
+	}
+	return filePath;
+}
+
+function describeProject(project) {
+	const state = project.draft ? "[草稿]" : "[公开]";
+	const status = project.status ? `（${projectStatusLabel(project.status)}）` : "";
+	return `${state} ${project.title}${status}`;
+}
+
+async function chooseProject() {
+	const projects = getProjects();
+	if (projects.length === 0) {
+		notice(
+			"还没有项目",
+			"src/content/projects/ 下还没有任何项目。\n先选「新建项目」写一个吧。",
+		);
+		return null;
+	}
+	const choice = await selectOption(
+		"选择项目",
+		projects.map((project, index) => ({
+			key: String(index),
+			label: describeProject(project),
+		})),
+	);
+	return choice === null ? null : projects[Number.parseInt(choice, 10)];
+}
+
+// 选项目状态：返回 null=跳过、""=清除、标准 key 或自定义文本。
+async function chooseProjectStatus(currentValue) {
+	const currentLabel = currentValue ? projectStatusLabel(currentValue) : "";
+	const choice = await selectOption("项目状态", [
+		{
+			key: "keep",
+			label: currentValue ? `保留当前（${currentLabel}）` : "保持留空",
+		},
+		...PROJECT_STATUS.map((item) => ({
+			key: `status:${item.key}`,
+			label: `${item.label}（${item.key}）`,
+		})),
+		{ key: "custom", label: "自定义文本" },
+		{ key: "clear", label: "清除状态" },
+	]);
+	if (choice === null || choice === "keep") return null;
+	if (choice === "clear") return "";
+	if (choice === "custom") {
+		const value = await ask("自定义状态文本", currentValue);
+		return value === null ? null : value.trim();
+	}
+	return choice.slice("status:".length);
+}
+
+// 外链数组 ⇄ 多行文本（每行：名称|图标|网址，图标可留空）
+function linksToText(links) {
+	return (links ?? [])
+		.map((item) => `${item.label ?? ""}|${item.icon ?? ""}|${item.value ?? ""}`)
+		.join("\n");
+}
+
+async function editProjectLinks(current) {
+	const next = await editMultiline(
+		"外链（每行：名称|图标|网址，图标可留空）",
+		linksToText(current),
+	);
+	if (next === null) return null;
+	const links = [];
+	for (const line of next.split("\n")) {
+		const trimmed = line.trim();
+		if (!trimmed) continue;
+		const [label = "", icon = "", value = ""] = trimmed
+			.split("|")
+			.map((part) => part.trim());
+		if (!label || !value) {
+			notice(
+				"格式不对",
+				`这一行缺少名称或网址：\n${trimmed}\n\n正确格式：GitHub|fa7-brands:github|https://github.com/xxx`,
+			);
+			return null;
+		}
+		links.push({ label, icon, value });
+	}
+	return links;
+}
+
+// 数字字段编辑：返回 null=跳过、""=清除、数字=新值
+async function editNumber(label, currentValue) {
+	const result = await editField(label, currentValue == null ? "" : String(currentValue));
+	if (result === null) return null;
+	if (result.trim() === "") return "";
+	const parsed = Number.parseInt(result.trim(), 10);
+	if (!Number.isInteger(parsed)) {
+		notice("数字无效", "请输入整数，这一项已保持原样。");
+		return null;
+	}
+	return parsed;
+}
+
+async function createProject() {
+	const title = await ask("项目名称");
+	if (title === null) return;
+	if (!title.trim()) {
+		notice("已取消", "项目名称不能为空。");
+		return;
+	}
+
+	let fileName;
+	let description;
+	let tags;
+	if (hasDialog) {
+		const width = boxWidth();
+		const labelWidth = 18;
+		const fieldWidth = Math.max(12, width - labelWidth - 6);
+		const fields = [
+			["文件名", title.trim()],
+			["一句话简介", ""],
+			["标签（逗号分隔）", ""],
+		];
+		const result = dialog([
+			"--title",
+			"项目信息",
+			"--form",
+			"",
+			String(Math.min(termSize().rows - 2, 12)),
+			String(width),
+			"3",
+			...fields.flatMap(([label, value], index) => [
+				label,
+				String(index + 1),
+				"1",
+				value,
+				String(index + 1),
+				String(labelWidth),
+				String(fieldWidth),
+				"0",
+			]),
+		]);
+		if (result === null) return;
+		[fileName = title, description = "", tags = ""] = result.split("\n");
+	} else {
+		fileName = await ask("文件名（决定网址，可留空用项目名）", title.trim());
+		if (fileName === null) return;
+		description = await ask("一句话简介（可留空）");
+		tags = await ask("标签，多个用逗号分隔（可留空）");
+	}
+	fileName = (fileName ?? "").trim();
+	if (!fileName) {
+		notice("已取消", "文件名不能为空。");
+		return;
+	}
+
+	const filePath = resolveProjectPath(fileName);
+	if (fs.existsSync(filePath)) {
+		notice("文件已存在", `${relativePostPath(filePath)}\n\n换个文件名再试。`);
+		return;
+	}
+
+	const frontmatter = buildFrontmatter({
+		title: title.trim(),
+		published: todayInSiteTimezone(),
+		draft: true,
+		description: description ?? "",
+		status: "planning",
+		tags: parseTags(tags ?? ""),
+	});
+	const body =
+		"## 项目介绍\n\n在这里写项目介绍（支持 Markdown、代码块、图片等）。\n";
+	fs.mkdirSync(path.dirname(filePath), { recursive: true });
+	fs.writeFileSync(filePath, `${frontmatter}\n${body}`);
+
+	notice(
+		"草稿已创建",
+		`${relativePostPath(filePath)}\n\n本地预览可见，正式网站不会显示。\n可在「编辑项目信息」里补简介、状态和外链。`,
+	);
+}
+
+async function changeProjectVisibility(project) {
+	const nextDraft = !project.draft;
+	const action = nextDraft ? "隐藏" : "公开";
+	if (!(await confirm(`确认${action}《${project.title}》？`))) return;
+
+	updateFrontmatter(project.filePath, { draft: nextDraft });
+	notice(`已${action}`, relativePostPath(project.filePath));
+}
+
+// 删除项目：和文章一样移入隔离区，构建不会带上
+async function deleteProject(project) {
+	if (!(await confirm(`确认删除《${project.title}》？`))) return;
+	if (
+		!(await confirm(
+			"文件会移到 src/content/_quarantine/，不进构建，可手动恢复。仍要继续？",
+		))
+	)
+		return;
+
+	const relative = relativePostPath(project.filePath);
+	const target = path.join(
+		quarantineDir,
+		path.relative(projectsDir, project.filePath),
+	);
+	fs.mkdirSync(path.dirname(target), { recursive: true });
+	fs.renameSync(project.filePath, target);
+
+	// 项目目录若已空（只剩被删的 md），顺手清掉空目录；.gitkeep 在根目录所以根不会删
+	const originalDir = path.dirname(project.filePath);
+	const removeEmptyDirs = (dir) => {
+		if (dir === projectsDir || !dir.startsWith(`${projectsDir}${path.sep}`))
+			return;
+		const entries = fs.readdirSync(dir, { withFileTypes: true });
+		if (entries.length === 0) {
+			fs.rmdirSync(dir);
+			removeEmptyDirs(path.dirname(dir));
+		}
+	};
+	removeEmptyDirs(originalDir);
+
+	notice(
+		"已删除",
+		`${relative}\n\n文件已移到 src/content/_quarantine/，可手动恢复。`,
+	);
+}
+
+async function editProjectInfo(project) {
+	const { parsed } = readPost(project.filePath);
+	const d = parsed.data;
+	const edits = {};
+
+	// 留空即删掉整行的字段；description/image/tags 有 schema 默认值，写成空值更直观
+	const OPTIONAL_FIELDS = new Set(["slug", "status", "order"]);
+	const setField = (key, next) => {
+		if (next === null) return;
+		const current = d[key];
+		const currentText =
+			current === undefined || current === null ? "" : String(current);
+		if (next === "" && OPTIONAL_FIELDS.has(key)) {
+			if (current !== undefined) edits[key] = DELETE_FIELD;
+			return;
+		}
+		if (String(next) !== currentText) edits[key] = next;
+	};
+
+	const title = await editField("项目名称", d.title, { allowClear: false });
+	if (title === null) return;
+	if (!title.trim()) {
+		notice("已取消", "项目名称不能为空。");
+		return;
+	}
+	setField("title", title.trim());
+
+	setField("description", await editField("一句话简介", d.description ?? ""));
+
+	const status = await chooseProjectStatus(d.status ?? "");
+	if (status !== null) {
+		if (status === "") {
+			if (d.status !== undefined) edits.status = DELETE_FIELD;
+		} else if (status !== (d.status ?? "")) {
+			edits.status = status;
+		}
+	}
+
+	const tagsRaw = await editField("标签（逗号分隔）", tagsToString(d.tags));
+	if (tagsRaw !== null) {
+		const nextTags = parseTags(tagsRaw);
+		if (JSON.stringify(nextTags) !== JSON.stringify(d.tags ?? [])) {
+			edits.tags = nextTags;
+		}
+	}
+
+	setField("order", await editNumber("排序权重（越大越靠前，清空则按日期）", d.order));
+
+	const image = await chooseCoverImage(d.image ?? "");
+	if (image !== null && image !== (d.image ?? "")) edits.image = image;
+
+	const link = await editProjectLinks(d.link ?? []);
+	if (link !== null) {
+		const normalize = (items) =>
+			(items ?? []).map((item) => ({
+				label: item.label ?? "",
+				icon: item.icon ?? "",
+				value: item.value ?? "",
+			}));
+		if (JSON.stringify(normalize(link)) !== JSON.stringify(normalize(d.link))) {
+			edits.link = link;
+		}
+	}
+
+	if (!updateFrontmatter(project.filePath, edits)) {
+		notice("没有改动", "所有字段都保持原样，文件没有被修改。");
+		return;
+	}
+	notice(
+		"已更新",
+		`${relativePostPath(project.filePath)}\n\n改动字段：${Object.keys(edits).join("、")}`,
+	);
+}
+
+async function manageProjects() {
+	const action = await selectOption("项目管理", [
+		{ key: "new", label: "新建项目" },
+		{ key: "edit", label: "编辑项目信息" },
+		{ key: "visibility", label: "公开或隐藏项目" },
+		{ key: "delete", label: "删除项目（移入隔离区）" },
+	]);
+	if (action === null) return;
+	if (action === "new") {
+		await createProject();
+		return;
+	}
+	const project = await chooseProject();
+	if (!project) return;
+	if (action === "edit") await editProjectInfo(project);
+	else if (action === "visibility") await changeProjectVisibility(project);
+	else if (action === "delete") await deleteProject(project);
+}
+
 // 选择一条微语用于编辑/删除。微语按时间倒序（最新在前），最近 N 条进菜单。
 async function chooseDynamic() {
 	const dynamics = getDynamics();
@@ -1168,6 +1531,7 @@ const MAIN_ACTIONS = [
 	{ key: "new", label: "写一篇新草稿" },
 	{ key: "dynamic", label: "写一条动态/微语" },
 	{ key: "manage-dynamic", label: "管理微语（编辑/删除/置顶/位置）" },
+	{ key: "projects", label: "管理项目（新建/编辑/删除）" },
 	{ key: "edit", label: "编辑文章信息" },
 	{ key: "visibility", label: "公开或隐藏文章" },
 	{ key: "delete", label: "删除文章（移入隔离区）" },
@@ -1214,6 +1578,7 @@ const HANDLERS = {
 	new: createPost,
 	dynamic: createDynamic,
 	"manage-dynamic": manageDynamic,
+	projects: manageProjects,
 	edit: editPostInfo,
 	visibility: changeVisibility,
 	delete: deletePost,
