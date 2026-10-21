@@ -181,7 +181,15 @@ async function computeSiteLogo(): Promise<{
 	if (logo) {
 		if (logo.type === "url") return { url: logo.value };
 		if (logo.type === "image") {
-			const info = await getLocalImageInfo(logo.value, "", siteConfig.site_url);
+			const value = logo.value;
+			// public（以 "/" 开头）、远程、data: 路径直接使用，无需按 src 相对路径查找
+			if (/^(https?:)?\/\//.test(value) || value.startsWith("data:")) {
+				return { url: value };
+			}
+			if (value.startsWith("/")) {
+				return { url: new URL(url(value), siteConfig.site_url).toString() };
+			}
+			const info = await getLocalImageInfo(value, "", siteConfig.site_url);
 			return info
 				? { url: info.url, width: info.width, height: info.height }
 				: null;
