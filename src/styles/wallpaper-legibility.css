@@ -1,0 +1,54 @@
+/* ===== 壁纸模式下的文本可读性（本地定制，独立文件，避免与上游样式冲突） =====
+   壁纸是浅色插画，纯白标题直接压上去对比度不足。上游已有边缘渐晕（#wallpaper-wrapper::after），
+   这里只补一层均匀压暗 + 柔光文字阴影：不出现任何形状，6 张随机图都能读 */
+
+/* 压在图片上、文案层之下，首页与文章页共用 */
+#banner-images-container::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 11;
+	pointer-events: none;
+	background: rgba(8, 10, 22, 0.22);
+}
+
+/* 暗色模式下页面底色是深色，壁纸压得更深才不会亮得跳出来 */
+html.dark #banner-images-container::after {
+	background: rgba(6, 8, 16, 0.48);
+}
+
+#wallpaper-wrapper .banner-title,
+#wallpaper-wrapper .banner-post-title {
+	text-shadow:
+		0 2px 8px rgba(0, 0, 0, 0.55),
+		0 0 28px rgba(0, 0, 0, 0.45),
+		0 0 64px rgba(0, 0, 0, 0.35);
+}
+
+#wallpaper-wrapper .banner-subtitle,
+#wallpaper-wrapper .banner-post-meta-list {
+	text-shadow:
+		0 1px 6px rgba(0, 0, 0, 0.6),
+		0 0 22px rgba(0, 0, 0, 0.45);
+}
+
+/* 标题下方的链接按钮：原来的白色 14% 玻璃底在浅色壁纸上等于隐形，换成深色底 */
+#wallpaper-wrapper .banner-link {
+	background: rgba(12, 15, 28, 0.34);
+	border-color: rgba(255, 255, 255, 0.26);
+	color: rgba(255, 255, 255, 0.95);
+}
+
+#wallpaper-wrapper .banner-link:hover {
+	background: rgba(12, 15, 28, 0.55);
+	color: #fff;
+}
+
+/* 系统开启「减少动态效果」时：轮播仍会换图，但去掉缩放与淡入动画，只做瞬时切换 */
+@media (prefers-reduced-motion: reduce) {
+	.slide-item {
+		animation: none !important;
+		transition: none !important;
+		transform: none !important;
+	}
+}
